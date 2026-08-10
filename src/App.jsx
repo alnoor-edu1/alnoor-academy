@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import Chat from "./components/Chat";
 import GradesModal from "./components/GradesModal";
@@ -36,8 +37,8 @@ import {
 const MN = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
   'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const now = new Date();
-const CY = now.getFullYear();  // السنة الحالية تلقائياً
-const CM = now.getMonth();     // الشهر الحالي تلقائياً
+const CY = now.getFullYear();
+const CM = now.getMonth();
 
 const GRADES = [
   {id:'p1',name:'الصف الأول الابتدائي',level:'ابتدائي'},
@@ -202,14 +203,12 @@ function Login() {
       const userCred = await createUserWithEmailAndPassword(auth, sEmail.trim(), sPass.trim());
       const uid = userCred.user.uid;
       
-      // حفظ بيانات المستخدم في users collection
       await setDoc(doc(db, 'users', uid), {
         uid, name: sName.trim(), email: sEmail.trim(),
         role: 'student_pending', grade, phone: phone.trim(),
         createdAt: new Date().toISOString(), status: 'pending',
       });
       
-      // حفظ في pendingStudents collection
       await addDoc(collection(db, 'pendingStudents'), {
         uid, name: sName.trim(), grade, phone: phone.trim(),
         email: sEmail.trim(), requestedAt: today(), status: 'pending',
@@ -362,7 +361,6 @@ function StudentDash({ user }) {
 
   return (
     <div style={{ animation:'fadeIn .5s ease' }}>
-      {/* Hero Banner */}
       <div style={{ background:'linear-gradient(135deg,#1e3a8a,#3b82f6,#8b5cf6)', borderRadius:'var(--rx)', padding:'20px 16px', marginBottom:16, position:'relative', overflow:'hidden', color:'#fff' }}>
         <div style={{ position:'absolute', top:-40, left:-40, width:150, height:150, borderRadius:'50%', background:'rgba(255,255,255,.06)' }}></div>
         <div style={{ position:'absolute', bottom:-20, right:-20, width:100, height:100, borderRadius:'50%', background:'rgba(255,255,255,.04)' }}></div>
@@ -381,7 +379,6 @@ function StudentDash({ user }) {
         </div>
       </div>
 
-      {/* Month notice */}
       <div style={{ background:'linear-gradient(135deg,var(--wa-l),#fde68a)', border:'1px solid var(--wa)', borderRadius:'var(--rl)', padding:'12px 14px', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
         <span style={{ fontSize:20 }}>📅</span>
         <div>
@@ -390,7 +387,6 @@ function StudentDash({ user }) {
         </div>
       </div>
 
-      {/* Announcements */}
       {announcements.length > 0 && (
         <div className="card" style={{ padding:'14px 16px', marginBottom:16, borderRadius:'var(--rx)' }}>
           <div className="st">📢 إعلانات الأكاديمية</div>
@@ -624,7 +620,6 @@ function PendingReg() {
       for(let m=0;m<=CM;m++) payments[sub.id][mk(CY,m)]={paid:false,paidDate:null};
     });
     
-    // استخدام uid كـ studentId
     const sid = req.uid;
     const newStudent = { 
       id: sid, 
@@ -638,19 +633,13 @@ function PendingReg() {
     };
     
     try {
-      // 1. حفظ في students collection باستخدام uid كـ document ID
       await setDoc(doc(db, 'students', sid), newStudent);
-      
-      // 2. تحديث حالة المستخدم في users collection - هذا هو الإصلاح الأساسي
       await updateDoc(doc(db, 'users', req.uid), {
         role: 'student',
         status: 'approved',
         studentId: sid
       });
-      
-      // 3. حذف من pendingStudents
       await deleteDoc(doc(db, 'pendingStudents', req.id));
-      
       toast(`✅ تم قبول تسجيل ${req.name} وتم تفعيل حسابه`, 'success');
     } catch(e) { 
       console.error('Error approving student:', e); 
@@ -661,15 +650,11 @@ function PendingReg() {
   const reject = async req => {
     if(!confirm(`رفض طلب ${req.name}؟`)) return;
     try {
-      // تحديث حالة المستخدم في users collection
       await updateDoc(doc(db, 'users', req.uid), {
         status: 'rejected',
         role: 'student_pending'
       });
-      
-      // حذف من pendingStudents
       await deleteDoc(doc(db, 'pendingStudents', req.id));
-      
       toast(`تم رفض طلب ${req.name}`, 'warning');
     } catch(e) { 
       console.error('Error rejecting student:', e);
@@ -835,7 +820,6 @@ function PayReports() {
   const totRev = filtered.reduce((t,s)=>t+subjects.filter(sub=>sub.grade===s.grade).filter(sub=>s.payments?.[sub.id]?.[k]?.paid).reduce((sum,sub)=>sum+sub.fee,0),0);
   const totExp = filtered.reduce((t,s)=>t+subjects.filter(sub=>sub.grade===s.grade).reduce((sum,sub)=>sum+sub.fee,0),0);
 
-  // حساب نسبة كل معلم
   const teacherStats = teachers.map(teacher => {
     const teacherSubjects = subjects.filter(sub => sub.teacher === teacher.id);
     let totalPaid = 0;
@@ -853,7 +837,7 @@ function PayReports() {
       });
     });
     
-    const teacherShare = Math.round(totalPaid * 0.7); // 70%
+    const teacherShare = Math.round(totalPaid * 0.7);
     
     return {
       ...teacher,
@@ -882,7 +866,6 @@ function PayReports() {
         </div>
       </div>
 
-      {/* نسب المعلمين */}
       <div className="card" style={{ padding:'16px', marginBottom:14, borderRadius:'var(--rx)' }}>
         <div style={{ fontSize:16, fontWeight:800, marginBottom:14 }}>👨‍🏫 نسبة المعلمين (70%) – {MN[mf]} {CY}</div>
         <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
@@ -1226,9 +1209,6 @@ function AdminStudents() {
 /* ══════════════════════════════════════════════════════════
    ADMIN TEACHERS
 ══════════════════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════════════════
-   ADMIN TEACHERS (معدل - ينشئ حساب Authentication)
-══════════════════════════════════════════════════════════ */
 function AdminTeachers() {
   const { teachers, setTeachers, toast } = useApp();
   const [modal, setModal] = useState(false);
@@ -1466,6 +1446,7 @@ function AdminTeachers() {
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════════════════
    ADMIN SUBJECTS
 ══════════════════════════════════════════════════════════ */
@@ -1640,7 +1621,209 @@ function AdminAnn() {
   );
 }
 
+/* ══════════════════════════════════════════════════════════
+   ROOM SCHEDULE
+══════════════════════════════════════════════════════════ */
+function RoomSchedule() {
+  const { teachers, subjects, toast } = useApp();
+  const [rooms, setRooms] = useState([
+    { id: 'r1', name: 'قاعة ١', capacity: 30 },
+    { id: 'r2', name: 'قاعة ٢', capacity: 25 },
+    { id: 'r3', name: 'قاعة ٣', capacity: 20 },
+  ]);
+  
+  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+  const hours = ['8-9', '9-10', '10-11', '11-12', '12-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8'];
+  
+  const [schedule, setSchedule] = useState({});
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [editModal, setEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ teacher: '', subject: '', status: 'available' });
 
+  useEffect(() => {
+    getDoc(doc(db, 'settings', 'roomSchedule')).then(docSnap => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.schedule) setSchedule(data.schedule);
+        if (data.rooms) setRooms(data.rooms);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const saveToFirestore = async (newSchedule, newRooms) => {
+    try {
+      await setDoc(doc(db, 'settings', 'roomSchedule'), {
+        schedule: newSchedule || schedule,
+        rooms: newRooms || rooms,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (e) {
+      toast('خطأ في الحفظ', 'error');
+    }
+  };
+
+  const addRoom = async () => {
+    const name = prompt('اسم القاعة الجديدة:');
+    if (!name) return;
+    const capacity = prompt('السعة (عدد الطلاب):', '30');
+    if (!capacity) return;
+    const newRooms = [...rooms, { id: 'r' + Date.now(), name, capacity: +capacity }];
+    setRooms(newRooms);
+    await saveToFirestore(schedule, newRooms);
+    toast('✅ تمت إضافة القاعة', 'success');
+  };
+
+  const deleteRoom = async (roomId) => {
+    if (!confirm('حذف هذه القاعة؟')) return;
+    const newRooms = rooms.filter(r => r.id !== roomId);
+    const newSchedule = { ...schedule };
+    Object.keys(newSchedule).forEach(key => {
+      if (key.startsWith(roomId)) delete newSchedule[key];
+    });
+    setRooms(newRooms);
+    setSchedule(newSchedule);
+    await saveToFirestore(newSchedule, newRooms);
+    toast('تم الحذف', 'warning');
+  };
+
+  const openEdit = (roomId, day, hour) => {
+    const key = `${roomId}-${day}-${hour}`;
+    setSelectedCell({ roomId, day, hour, key });
+    setEditForm(schedule[key] || { teacher: '', subject: '', status: 'available' });
+    setEditModal(true);
+  };
+
+  const saveCell = async () => {
+    if (!selectedCell) return;
+    const updated = { ...schedule };
+    if (editForm.status === 'available') {
+      delete updated[selectedCell.key];
+    } else {
+      updated[selectedCell.key] = { ...editForm };
+    }
+    setSchedule(updated);
+    setEditModal(false);
+    await saveToFirestore(updated, rooms);
+    toast('✅ تم التحديث', 'success');
+  };
+
+  const deleteAll = async () => {
+    if (!confirm('مسح كامل الجدول لجميع القاعات؟')) return;
+    setSchedule({});
+    await saveToFirestore({}, rooms);
+    toast('تم مسح الجدول', 'warning');
+  };
+
+  return (
+    <div style={{ animation: 'fadeIn .5s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>🏫 جدول القاعات الأسبوعي</div>
+          <div style={{ fontSize: 13, color: 'var(--mu)', marginTop: 2 }}>من ٨ صباحاً - ٨ مساءً | {rooms.length} قاعات</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn bp sm" onClick={addRoom}>➕ إضافة قاعة</button>
+          <button className="btn bgh sm" style={{ color: 'var(--er)' }} onClick={deleteAll}>🗑️ مسح الجدول</button>
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto', borderRadius: 'var(--rx)', border: '2px solid var(--bd)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 800 }}>
+          <thead>
+            <tr style={{ background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', color: '#fff' }}>
+              <th style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>⏰ الوقت</th>
+              {days.map(day => (
+                <th key={day} style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>{day}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rooms.map((room) => [
+              <tr key={`head-${room.id}`} style={{ background: '#f1f5f9' }}>
+                <td colSpan={7} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 13, border: '1px solid var(--bd)' }}>
+                  🏠 {room.name} (🪑 {room.capacity} طالب)
+                  <button onClick={() => deleteRoom(room.id)} style={{ float: 'left', background: 'none', border: 'none', color: 'var(--er)', cursor: 'pointer' }}>🗑️</button>
+                </td>
+              </tr>,
+              ...hours.map((hour, hourIdx) => (
+                <tr key={`${room.id}-${hour}`} style={{ background: hourIdx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                  <td style={{ padding: '6px 8px', border: '1px solid var(--bd)', fontWeight: 700, textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap' }}>
+                    {hour.replace('-', ' - ')} {hourIdx < 4 ? 'ص' : 'م'}
+                  </td>
+                  {days.map(day => {
+                    const key = `${room.id}-${day}-${hour}`;
+                    const cell = schedule[key];
+                    const isAvailable = !cell || cell.status === 'available';
+                    const isBusy = cell?.status === 'busy';
+                    const isBreak = cell?.status === 'break';
+                    
+                    return (
+                      <td
+                        key={day}
+                        onClick={() => openEdit(room.id, day, hour)}
+                        style={{
+                          padding: 0,
+                          border: '1px solid var(--bd)',
+                          cursor: 'pointer',
+                          background: isAvailable ? '#f0fdf4' : isBusy ? '#fef2f2' : '#fefce8',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ padding: '6px 4px', minHeight: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                          {isAvailable && <span style={{ color: '#16a34a', fontSize: 14 }}>✅</span>}
+                          {isBusy && (
+                            <>
+                              <span style={{ fontWeight: 700, color: '#dc2626', fontSize: 10, textAlign: 'center' }}>{cell.teacher}</span>
+                              <span style={{ fontSize: 9, color: '#991b1b', textAlign: 'center' }}>{cell.subject}</span>
+                            </>
+                          )}
+                          {isBreak && <span style={{ fontSize: 14 }}>⏸️</span>}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            ])}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ marginTop: 14, display: 'flex', gap: 16, fontSize: 12, color: 'var(--mu)' }}>
+        <span>🟢 متاح</span>
+        <span>🔴 محجوز</span>
+        <span>🟡 استراحة</span>
+      </div>
+
+      <Modal open={editModal} close={() => setEditModal(false)} title={`✏️ ${selectedCell?.day || ''} | ${selectedCell?.hour?.replace('-', ' - ') || ''} | ${rooms.find(r => r.id === selectedCell?.roomId)?.name || ''}`}
+        footer={<><button className="btn bp wf" onClick={saveCell}>💾 حفظ</button><button className="btn bgh wf" onClick={() => setEditModal(false)}>إلغاء</button></>}>
+        <div className="fg"><label className="fl">الحالة</label>
+          <select className="inp" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
+            <option value="available">✅ متاح</option>
+            <option value="busy">❌ محجوز</option>
+            <option value="break">⏸️ استراحة</option>
+          </select>
+        </div>
+        {editForm.status === 'busy' && (
+          <>
+            <div className="fg"><label className="fl">المعلم</label>
+              <select className="inp" value={editForm.teacher} onChange={e => setEditForm({ ...editForm, teacher: e.target.value })}>
+                <option value="">-- اختر --</option>
+                {teachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+              </select>
+            </div>
+            <div className="fg"><label className="fl">المادة</label>
+              <select className="inp" value={editForm.subject} onChange={e => setEditForm({ ...editForm, subject: e.target.value })}>
+                <option value="">-- اختر --</option>
+                {subjects.filter(s => editForm.teacher && teachers.find(t => t.name === editForm.teacher)?.id === s.teacher).map(s => <option key={s.id} value={s.name}>{s.emoji} {s.name}</option>)}
+              </select>
+            </div>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}
 /* ══════════════════════════════════════════════════════════
    TEACHER DASHBOARD
 ══════════════════════════════════════════════════════════ */
@@ -1875,7 +2058,6 @@ export default function App() {
   const [announcements, setAnnouncements] = useState([]);
   const [pendingStudents, setPendingStudents] = useState([]);
 
-  /* ═════════════ TOAST ═════════════ */
   const toast = useCallback((msg, type='info') => {
     const id = Date.now();
     setToasts(p=>[...p,{id,msg,type}]);
@@ -1887,7 +2069,6 @@ export default function App() {
 
   const removeToast = id => setToasts(p=>p.filter(t=>t.id!==id));
 
-  /* ═════════════ REALTIME LISTENERS ═════════════ */
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "students"), snap => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -1923,7 +2104,6 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  /* ═════════════ AUTH ═════════════ */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async fbUser => {
       if (!fbUser) { 
@@ -1934,11 +2114,9 @@ export default function App() {
       }
       
       try {
-        // الحصول على بيانات المستخدم من Firestore
         const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
         
         if (!userDoc.exists()) {
-          // المستخدم غير موجود في Firestore - تسجيل خروج
           await signOut(auth);
           setUser(null);
           setRole(null);
@@ -1949,7 +2127,6 @@ export default function App() {
         const userData = userDoc.data();
         const r = userData.role || 'student';
         
-        // التحقق من حالة المستخدم - إذا كان مرفوضاً
         if (userData.status === 'rejected') {
           await signOut(auth);
           setUser(null);
@@ -1966,8 +2143,6 @@ export default function App() {
         };
 
         if (r === 'student' || r === 'student_pending') {
-          // البحث عن الطالب في students collection
-          // 🔧 الإصلاح: البحث بـ uid مباشرة (لأننا نستخدم uid كـ document ID)
           const studentDoc = await getDoc(doc(db, 'students', fbUser.uid));
           
           if (studentDoc.exists()) {
@@ -1978,7 +2153,6 @@ export default function App() {
                 sid: studentDoc.id, 
                 grade: studentData.grade 
               };
-              // تحديث role إذا كان ما زال student_pending
               if (r === 'student_pending') {
                 setRole('student');
               } else {
@@ -1988,7 +2162,6 @@ export default function App() {
               setRole('student_pending');
             }
           } else {
-            // إذا لم يتم العثور على الطالب في students collection
             setRole('student_pending');
           }
         } else if (r === 'teacher') {
@@ -2011,7 +2184,6 @@ export default function App() {
     return () => unsub();
   }, [students, teachers]);
 
-  /* ═════════════ LOGOUT ═════════════ */
   const logout = async () => {
     await signOut(auth);
     setUser(null); 
@@ -2020,7 +2192,6 @@ export default function App() {
     setSelSub(null);
   };
 
-  /* ═════════════ CONTEXT ═════════════ */
   const ctx = {
     user, role, page, setPage, selSub, setSelSub,
     students, setStudents, teachers, setTeachers,
@@ -2028,7 +2199,6 @@ export default function App() {
     pendingStudents, setPendingStudents, logout, toast
   };
 
-  /* ═════════════ NAV ═════════════ */
   const navItems = role === 'admin' ? [
     { id:'dashboard', label:'الرئيسية', icon:'🏠' },
     { id:'students', label:'الطلاب', icon:'👨‍🎓' },
@@ -2038,6 +2208,7 @@ export default function App() {
     { id:'reports', label:'التقارير', icon:'📊' },
     { id:'announcements', label:'الإعلانات', icon:'📢' },
     { id:'pending', label:'الطلبات', icon:'⏳' },
+    { id:'rooms', label:'القاعات', icon:'🏫' },
   ] : [
     { id:'dashboard', label:'لوحتي', icon:'🏠' }
   ];
@@ -2055,6 +2226,7 @@ export default function App() {
     if (page === 'teachers') return <AdminTeachers />;
     if (page === 'subjects') return <AdminSubjects />;
     if (page === 'announcements') return <AdminAnn />;
+    if (page === 'rooms') return <RoomSchedule />;
     if (page === 'subjectDetail' && selSub) return <SubjectDetail sub={selSub} onBack={() => setPage('dashboard')} />;
     return <AdminOverview />;
   }
