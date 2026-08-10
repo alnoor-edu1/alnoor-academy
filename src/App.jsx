@@ -1640,9 +1640,7 @@ function AdminAnn() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════
-   TEACHER DASHBOARD
-══════════════════════════════════════════════════════════ */
+
 /* ══════════════════════════════════════════════════════════
    TEACHER DASHBOARD
 ══════════════════════════════════════════════════════════ */
@@ -1740,7 +1738,7 @@ function TeacherDash({ user }) {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
           {mySubs.map((sub,i)=>{
             const g = GRADES.find(x=>x.id===sub.grade);
-            const sts = students.filter(s=>s.grade===sub.grade);
+            const sts = students.filter(s=>s.grade===sub.grade && s.payments?.[sub.id]);
             const pc = sts.filter(s=>s.payments?.[sub.id]?.[k]?.paid).length;
             return (
               <div key={sub.id} className="card ch" style={{ borderRadius:'var(--rx)', overflow:'hidden', animationDelay:`${i*.08}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
@@ -1768,7 +1766,7 @@ function TeacherDash({ user }) {
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {mySubs.flatMap(sub=>{
             const g = GRADES.find(x=>x.id===sub.grade);
-            return students.filter(s=>s.grade===sub.grade).map(s=>{
+            return students.filter(s=>s.grade===sub.grade && s.payments?.[sub.id]).map(s=>{
               const mo = s.payments?.[sub.id]?.[k];
               
               const removeStudent = async () => {
@@ -1797,7 +1795,7 @@ function TeacherDash({ user }) {
                       onClick={removeStudent}
                       style={{
                         background:'var(--er-l)',
-                        color:'var(--er)',
+                        color:'var(--er)',           
                         border:'none',
                         borderRadius:'50%',
                         width:26,
@@ -2092,4 +2090,3 @@ export default function App() {
       <Toasts list={toasts} remove={removeToast} />
     </Ctx.Provider>
   );
-}
