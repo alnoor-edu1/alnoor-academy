@@ -760,7 +760,7 @@ function AdminPayments() {
       </div>
 
       {filtered.map(student => {
-        const subs = subjects.filter(s=>s.grade===student.grade);
+        const subs = subjects.filter(s=>s.grade===student.grade && student.payments?.[s.id]);
         if(!subs.length)return null;
         const k = mk(CY,selM);
         const pc = subs.filter(s=>student.payments?.[s.id]?.[k]?.paid).length;
@@ -1627,18 +1627,20 @@ function AdminAnn() {
 function RoomSchedule() {
   const { teachers, subjects, toast } = useApp();
   const [rooms, setRooms] = useState([
-    { id: 'r1', name: 'قاعة ١', capacity: 30 },
-    { id: 'r2', name: 'قاعة ٢', capacity: 25 },
-    { id: 'r3', name: 'قاعة ٣', capacity: 20 },
+    { id: 'r1', name: 'قاعة مكيفة', capacity: 20 },
+    { id: 'r2', name: 'قاعة عادية', capacity: 15 },
+    { id: 'r3', name: 'قاعة صغيرة', capacity: 12 },
   ]);
   
   const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
   const hours = ['8-9', '9-10', '10-11', '11-12', '12-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8'];
   
   const [schedule, setSchedule] = useState({});
-  const [selectedCell, setSelectedCell] = useState(null);
+  const [selectedDay, setSelectedDay] = useState('السبت');
+  const [selectedRoom, setSelectedRoom] = useState('r1');
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ teacher: '', subject: '', status: 'available' });
+  const [selectedHour, setSelectedHour] = useState(null);
 
   useEffect(() => {
     getDoc(doc(db, 'settings', 'roomSchedule')).then(docSnap => {
@@ -1673,33 +1675,21 @@ function RoomSchedule() {
     toast('✅ تمت إضافة القاعة', 'success');
   };
 
-  const deleteRoom = async (roomId) => {
-    if (!confirm('حذف هذه القاعة؟')) return;
-    const newRooms = rooms.filter(r => r.id !== roomId);
-    const newSchedule = { ...schedule };
-    Object.keys(newSchedule).forEach(key => {
-      if (key.startsWith(roomId)) delete newSchedule[key];
-    });
-    setRooms(newRooms);
-    setSchedule(newSchedule);
-    await saveToFirestore(newSchedule, newRooms);
-    toast('تم الحذف', 'warning');
-  };
-
-  const openEdit = (roomId, day, hour) => {
-    const key = `${roomId}-${day}-${hour}`;
-    setSelectedCell({ roomId, day, hour, key });
+  const openEdit = (hour) => {
+    const key = `${selectedRoom}-${selectedDay}-${hour}`;
+    setSelectedHour(hour);
     setEditForm(schedule[key] || { teacher: '', subject: '', status: 'available' });
     setEditModal(true);
   };
 
   const saveCell = async () => {
-    if (!selectedCell) return;
+    if (!selectedHour) return;
+    const key = `${selectedRoom}-${selectedDay}-${selectedHour}`;
     const updated = { ...schedule };
     if (editForm.status === 'available') {
-      delete updated[selectedCell.key];
+      delete updated[key];
     } else {
-      updated[selectedCell.key] = { ...editForm };
+      updated[key] = { ...editForm };
     }
     setSchedule(updated);
     setEditModal(false);
@@ -1714,88 +1704,145 @@ function RoomSchedule() {
     toast('تم مسح الجدول', 'warning');
   };
 
+  const room = rooms.find(r => r.id === selectedRoom);
+  const busyCount = hours.filter(hour => {
+    const key = `${selectedRoom}-${selectedDay}-${hour}`;
+    return schedule[key]?.status === 'busy';
+  }).length;
+
   return (
     <div style={{ animation: 'fadeIn .5s ease' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>🏫 جدول القاعات الأسبوعي</div>
-          <div style={{ fontSize: 13, color: 'var(--mu)', marginTop: 2 }}>من ٨ صباحاً - ٨ مساءً | {rooms.length} قاعات</div>
+          <div style={{ fontSize: 19, fontWeight: 800 }}>🏫 جدول القاعات</div>
+          <div style={{ fontSize: 11, color: 'var(--mu)', marginTop: 2 }}>{rooms.length} قاعات</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn bp sm" onClick={addRoom}>➕ إضافة قاعة</button>
-          <button className="btn bgh sm" style={{ color: 'var(--er)' }} onClick={deleteAll}>🗑️ مسح الجدول</button>
-        </div>
+        <button className="btn bp sm" style={{ fontSize: 11, padding: '5px 12px' }} onClick={addRoom}>➕</button>
       </div>
 
-      <div style={{ overflowX: 'auto', borderRadius: 'var(--rx)', border: '2px solid var(--bd)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 900 }}>
-          <thead>
-            <tr style={{ background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', color: '#fff' }}>
-              <th style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>⏰ الوقت</th>
-              {days.map(day => (
-                <th key={day} style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>{day}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rooms.map((room) => [
-              <tr key={`head-${room.id}`} style={{ background: '#f1f5f9' }}>
-                <td colSpan={8} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 13, border: '1px solid var(--bd)' }}>
-                  🏠 {room.name} (🪑 {room.capacity} طالب)
-                  <button onClick={() => deleteRoom(room.id)} style={{ float: 'left', background: 'none', border: 'none', color: 'var(--er)', cursor: 'pointer' }}>🗑️</button>
-                </td>
-              </tr>,
-              ...hours.map((hour, hourIdx) => (
-                <tr key={`${room.id}-${hour}`} style={{ background: hourIdx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                  <td style={{ padding: '6px 8px', border: '1px solid var(--bd)', fontWeight: 700, textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap' }}>
-                    {hour.replace('-', ' - ')} {hourIdx < 4 ? 'ص' : 'م'}
-                  </td>
-                  {days.map(day => {
-                    const key = `${room.id}-${day}-${hour}`;
-                    const cell = schedule[key];
-                    const isAvailable = !cell || cell.status === 'available';
-                    const isBusy = cell?.status === 'busy';
-                    const isBreak = cell?.status === 'break';
-                    
-                    return (
-                      <td
-                        key={day}
-                        onClick={() => openEdit(room.id, day, hour)}
-                        style={{
-                          padding: 0,
-                          border: '1px solid var(--bd)',
-                          cursor: 'pointer',
-                          background: isAvailable ? '#f0fdf4' : isBusy ? '#fef2f2' : '#fefce8',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ padding: '6px 4px', minHeight: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                          {isAvailable && <span style={{ color: '#16a34a', fontSize: 14 }}>✅</span>}
-                          {isBusy && (
-                            <>
-                              <span style={{ fontWeight: 700, color: '#dc2626', fontSize: 10, textAlign: 'center' }}>{cell.teacher}</span>
-                              <span style={{ fontSize: 9, color: '#991b1b', textAlign: 'center' }}>{cell.subject}</span>
-                            </>
-                          )}
-                          {isBreak && <span style={{ fontSize: 14 }}>⏸️</span>}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
-            ])}
-          </tbody>
-        </table>
+      {/* اختيار القاعة */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
+        {rooms.map(r => (
+          <button
+            key={r.id}
+            onClick={() => setSelectedRoom(r.id)}
+            style={{
+              padding: '7px 14px',
+              borderRadius: 20,
+              border: `2px solid ${selectedRoom === r.id ? 'var(--pr)' : 'var(--bd)'}`,
+              background: selectedRoom === r.id ? 'var(--pr)' : '#fff',
+              color: selectedRoom === r.id ? '#fff' : 'var(--tx)',
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            {r.name}
+          </button>
+        ))}
       </div>
 
-      <div style={{ marginTop: 14, display: 'flex', gap: 16, fontSize: 12, color: 'var(--mu)' }}>
+      {/* اختيار اليوم */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
+        {days.map(day => (
+          <button
+            key={day}
+            onClick={() => setSelectedDay(day)}
+            style={{
+              padding: '5px 10px',
+              borderRadius: 14,
+              border: `1px solid ${selectedDay === day ? 'var(--se)' : 'var(--bd)'}`,
+              background: selectedDay === day ? '#eef2ff' : '#fff',
+              color: selectedDay === day ? 'var(--se)' : 'var(--mu)',
+              fontWeight: 600,
+              fontSize: 10,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+
+      {/* ملخص */}
+      <div style={{ 
+        background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', 
+        borderRadius: 12, 
+        padding: '12px 14px', 
+        color: '#fff', 
+        marginBottom: 12,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 13 }}>{room?.name} - {selectedDay}</div>
+          <div style={{ fontSize: 10, opacity: .8 }}>🪑 {room?.capacity} | 📚 {busyCount}/{hours.length} محجوز</div>
+        </div>
+        <button className="btn bgh sm" style={{ color: '#fff', borderColor: 'rgba(255,255,255,.3)', fontSize: 10, padding: '4px 10px' }} onClick={deleteAll}>🗑️ مسح</button>
+      </div>
+
+      {/* الحصص */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {hours.map((hour, hourIdx) => {
+          const key = `${selectedRoom}-${selectedDay}-${hour}`;
+          const cell = schedule[key];
+          const isAvailable = !cell || cell.status === 'available';
+          const isBusy = cell?.status === 'busy';
+          const isBreak = cell?.status === 'break';
+          
+          return (
+            <div
+              key={hour}
+              onClick={() => openEdit(hour)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '9px 12px',
+                borderRadius: 10,
+                cursor: 'pointer',
+                border: `2px solid ${isAvailable ? '#d1fae5' : isBusy ? '#fecaca' : '#fef3c7'}`,
+                background: isAvailable ? '#f0fdf4' : isBusy ? '#fff5f5' : '#fffbeb'
+              }}
+            >
+              <div style={{ 
+                fontWeight: 700, 
+                fontSize: 11, 
+                color: 'var(--mu)',
+                minWidth: 45,
+                textAlign: 'center'
+              }}>
+                {hour.replace('-', ' - ')}
+                <div style={{ fontSize: 8, opacity: .5 }}>{hourIdx < 4 ? 'ص' : 'م'}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {isAvailable && <span style={{ color: '#16a34a', fontSize: 12 }}>✅ متاح</span>}
+                {isBusy && (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: '#dc2626' }}>{cell.teacher}</div>
+                    <div style={{ fontSize: 10, color: '#991b1b' }}>{cell.subject}</div>
+                  </>
+                )}
+                {isBreak && <span style={{ color: '#92400e', fontSize: 12 }}>⏸️ استراحة</span>}
+              </div>
+              <span style={{ color: 'var(--li)', fontSize: 16 }}>›</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 12, display: 'flex', gap: 12, fontSize: 10, color: 'var(--mu)', justifyContent: 'center' }}>
         <span>🟢 متاح</span>
         <span>🔴 محجوز</span>
         <span>🟡 استراحة</span>
       </div>
 
-      <Modal open={editModal} close={() => setEditModal(false)} title={`✏️ ${selectedCell?.day || ''} | ${selectedCell?.hour?.replace('-', ' - ') || ''} | ${rooms.find(r => r.id === selectedCell?.roomId)?.name || ''}`}
+      <Modal open={editModal} close={() => setEditModal(false)} title={`✏️ ${selectedDay} | ${selectedHour?.replace('-', ' - ') || ''}`}
         footer={<><button className="btn bp wf" onClick={saveCell}>💾 حفظ</button><button className="btn bgh wf" onClick={() => setEditModal(false)}>إلغاء</button></>}>
         <div className="fg"><label className="fl">الحالة</label>
           <select className="inp" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
