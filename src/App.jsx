@@ -1632,7 +1632,7 @@ function RoomSchedule() {
     { id: 'r3', name: 'قاعة ٣', capacity: 20 },
   ]);
   
-  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
   const hours = ['8-9', '9-10', '10-11', '11-12', '12-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8'];
   
   const [schedule, setSchedule] = useState({});
@@ -1728,7 +1728,7 @@ function RoomSchedule() {
       </div>
 
       <div style={{ overflowX: 'auto', borderRadius: 'var(--rx)', border: '2px solid var(--bd)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 800 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 900 }}>
           <thead>
             <tr style={{ background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', color: '#fff' }}>
               <th style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>⏰ الوقت</th>
@@ -1740,7 +1740,7 @@ function RoomSchedule() {
           <tbody>
             {rooms.map((room) => [
               <tr key={`head-${room.id}`} style={{ background: '#f1f5f9' }}>
-                <td colSpan={7} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 13, border: '1px solid var(--bd)' }}>
+                <td colSpan={8} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 13, border: '1px solid var(--bd)' }}>
                   🏠 {room.name} (🪑 {room.capacity} طالب)
                   <button onClick={() => deleteRoom(room.id)} style={{ float: 'left', background: 'none', border: 'none', color: 'var(--er)', cursor: 'pointer' }}>🗑️</button>
                 </td>
