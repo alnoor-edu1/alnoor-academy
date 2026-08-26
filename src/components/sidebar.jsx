@@ -3,43 +3,120 @@ import { useState } from "react";
 export default function Sidebar({ nav, cur, go, user, logout }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const handleNavigation = (id) => {
+    go(id);
+    setIsOpen(false);
+  };
+
   return (
     <>
-      <button className="menu-btn" onClick={() => setIsOpen(!isOpen)}>
-        {isOpen ? '✕' : '☰'}
+      {/* زر القائمة للموبايل */}
+      <button
+        className="menu-btn"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={isOpen ? "إغلاق القائمة" : "فتح القائمة"}
+      >
+        {isOpen ? "✕" : "☰"}
       </button>
-      
-      <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="sb-hd">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 11, background: 'linear-gradient(135deg,#2563EB,#7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 }}>🎓</div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>أكاديمية النور</div>
-              <div style={{ fontSize: 10, color: 'var(--mu)', marginTop: 1 }}>منصة التعليم المتكاملة</div>
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${isOpen ? "open" : ""}`}>
+
+        {/* رأس القائمة */}
+        <div className="sidebar-header">
+          <div className="brand">
+            <div className="brand-logo">
+              🎓
+            </div>
+
+            <div className="brand-text">
+              <div className="brand-name">
+                أكاديمية النور
+              </div>
+
+              <div className="brand-subtitle">
+                منصة التعليم المتكاملة
+              </div>
             </div>
           </div>
-          <div style={{ marginTop: 12, padding: '9px 12px', background: 'var(--bg)', borderRadius: 9, border: '1px solid var(--bd)' }}>
-            <div style={{ fontSize: 11, color: 'var(--mu)' }}>مرحباً</div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</div>
+        </div>
+
+        {/* معلومات المستخدم */}
+        <div className="sidebar-user">
+          <div className="user-label">
+            مرحباً
+          </div>
+
+          <div className="user-name">
+            {user?.name || "المستخدم"}
           </div>
         </div>
-        <div className="sb-nav">
-          {nav.map(item => 
+
+        {/* روابط التنقل */}
+        <nav className="sidebar-nav">
+          {nav.map((item) =>
             item.divider ? (
-              <div key={item.id} style={{ height: 1, background: 'var(--bd)', margin: '5px 0' }}></div>
+              <div
+                key={item.id}
+                className="sidebar-divider"
+              />
             ) : (
-              <div key={item.id} className={`ni ${cur === item.id ? 'ac' : ''}`} onClick={() => { go(item.id); setIsOpen(false); }}>
-                <span className="ni-ic">{item.icon}</span>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.badge > 0 && <span style={{ background: 'var(--er)', color: '#fff', borderRadius: 50, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{item.badge}</span>}
+              <div
+                key={item.id}
+                className={`nav-item ${
+                  cur === item.id ? "active" : ""
+                }`}
+                onClick={() => handleNavigation(item.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    handleNavigation(item.id);
+                  }
+                }}
+              >
+                {/* الأيقونة */}
+                <span className="ni-ic">
+                  {item.icon}
+                </span>
+
+                {/* اسم الصفحة */}
+                <span className="nav-label">
+                  {item.label}
+                </span>
+
+                {/* Badge */}
+                {item.badge > 0 && (
+                  <span className="nav-badge">
+                    {item.badge}
+                  </span>
+                )}
               </div>
             )
           )}
+        </nav>
+
+        {/* تسجيل الخروج */}
+        <div className="sidebar-footer">
+          <button
+            className="sidebar-logout"
+            onClick={logout}
+            type="button"
+          >
+            <span>🚪</span>
+            <span>تسجيل الخروج</span>
+          </button>
         </div>
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--bd)' }}>
-          <button className="btn bgh wf" onClick={logout} style={{ color: 'var(--er)', fontWeight: 700, fontSize: 13 }}>🚪 تسجيل الخروج</button>
-        </div>
-      </div>
+
+      </aside>
+
+      {/* طبقة خلفية للموبايل */}
+      {isOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
     </>
   );
 }

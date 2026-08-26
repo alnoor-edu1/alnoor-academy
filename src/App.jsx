@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import Chat from "./components/Chat";
 import GradesModal from "./components/GradesModal";
 import Sidebar from "./components/Sidebar";
@@ -162,6 +162,7 @@ function Login() {
   const [sEmail, setSEmail] = useState('');
   const [sPass, setSPass] = useState('');
   const [showSPass, setShowSPass] = useState(false);
+  const [lampOn, setLampOn] = useState(true);
 
   const groups = {};
   GRADES.forEach(g => {
@@ -229,7 +230,7 @@ function Login() {
       <div className="lbg"></div>
       <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
         {[{w:380,h:380,t:-90,r:-90},{w:280,h:280,b:-40,l:-40},{w:180,h:180,t:'38%',l:'28%'}].map((s,i)=>(
-          <div key={i} style={{ position:'absolute', borderRadius:'50%', background:'#fff', opacity:.07, width:s.w, height:s.h, top:s.t, right:s.r, bottom:s.b, left:s.l }}></div>
+          <div key={i} style={{ position:'absolute', borderRadius:'50%', background:'rgba(255,255,255,0.055)', opacity:.07, width:s.w, height:s.h, top:s.t, right:s.r, bottom:s.b, left:s.l }}></div>
         ))}
         {['📐','🔬','📖','🌍','🎨','💻'].map((e,i)=>(
           <div key={i} style={{ position:'absolute', fontSize:24+i*3, opacity:.11, color:'#fff', top:`${15+i*13}%`, left:`${8+i*14}%`, animation:`fUp ${2+i*.5}s ease-in-out infinite`, animationDelay:`${i*.3}s` }}>{e}</div>
@@ -238,9 +239,28 @@ function Login() {
 
       <div className="lpanel">
         <div className="lcard">
-          <div style={{ width:68, height:68, borderRadius:16, background:'linear-gradient(135deg,#3b82f6,#8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:34, margin:'0 auto 16px', boxShadow:'0 8px 24px rgba(59,130,246,0.35)' }}>🎓</div>
-          <h1 style={{ textAlign:'center', fontSize:24, fontWeight:900, marginBottom:4 }} className="tg">أكاديمية النور</h1>
-          <p style={{ textAlign:'center', color:'var(--mu)', fontSize:12, marginBottom:22 }}>منصة التعليم الإلكتروني المتكاملة</p>
+          <div className={`login-lamp-scene ${lampOn ? 'is-on' : 'is-off'}`}>
+            <div className="login-lamp-glow"></div>
+            <div className="login-lamp">
+              <div className="login-lamp-shade"></div>
+              <div className="login-lamp-stem"></div>
+              <div className="login-lamp-base"></div>
+              <button
+                type="button"
+                className="login-lamp-chain"
+                aria-label={lampOn ? 'إطفاء المصباح' : 'تشغيل المصباح'}
+                title={lampOn ? 'إطفاء المصباح' : 'تشغيل المصباح'}
+                onClick={() => setLampOn(v => !v)}
+              >
+                <span></span>
+              </button>
+            </div>
+            <div className="login-lamp-caption">اضغط السلسلة لتشغيل/إطفاء المصباح</div>
+          </div>
+
+          <div className="login-logo" style={{ width:68, height:68, borderRadius:16, background:'linear-gradient(135deg,#3b82f6,#8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:34, margin:'0 auto 16px', boxShadow:'0 8px 24px rgba(59,130,246,0.35)' }}>🎓</div>
+          <h1 className="login-title tg" style={{ textAlign:'center', fontSize:24, fontWeight:900, marginBottom:4 }}>أكاديمية النور</h1>
+          <p className="login-subtitle" style={{ textAlign:'center', color:'var(--mu)', fontSize:12, marginBottom:22 }}>منصة التعليم الإلكتروني المتكاملة</p>
 
           <div className="tabs">
             {[['firebase','🔥 تسجيل الدخول'],['student','📝 تسجيل جديد']].map(([m,l])=>(
@@ -253,7 +273,7 @@ function Login() {
               <button
                 className="btn wf lg"
                 disabled={load}
-                style={{ background:'#fff', color:'#3c4043', border:'2px solid var(--bd)', marginBottom:14, fontWeight:700, gap:10, justifyContent:'center' }}
+                style={{ background:'rgba(255,255,255,0.055)', color:'#3c4043', border:'2px solid var(--bd)', marginBottom:14, fontWeight:700, gap:10, justifyContent:'center' }}
                 onClick={doGoogle}
               >
                 <svg width="18" height="18" viewBox="0 0 48 48" style={{ flexShrink:0 }}>
@@ -274,14 +294,14 @@ function Login() {
               <div className="fg">
                 <label className="fl">📧 البريد الإلكتروني</label>
                 <input className="inp" type="email" placeholder="example@email.com" value={email}
-                  onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doEmail()}/>
+                  onFocus={()=>setLampOn(true)} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doEmail()}/>
               </div>
               <div className="fg">
                 <label className="fl">🔒 كلمة المرور</label>
                 <div style={{ position:'relative' }}>
                   <input type={showP?'text':'password'} className="inp" style={{ paddingLeft:42 }}
                     placeholder="••••••••" value={pass}
-                    onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doEmail()}/>
+                    onFocus={()=>setLampOn(true)} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doEmail()}/>
                   <button type="button" onClick={()=>setShowP(p=>!p)}
                     style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:16 }}>
                     {showP?'🙈':'👁️'}
@@ -292,11 +312,11 @@ function Login() {
                 {load ? <><div className="sp"></div>&nbsp;جاري الدخول...</> : '🚀 دخول'}
               </button>
 
-              <div style={{ marginTop:16, padding:'12px 14px', background:'#f8fafc', borderRadius:'var(--r)', border:'1px solid var(--bd)', fontSize:11, lineHeight:1.9, color:'var(--mu)' }}>
+              <div className="login-tech-note" style={{ marginTop:16, padding:'12px 14px', background:'rgba(255,255,255,0.04)', borderRadius:'var(--r)', border:'1px solid var(--bd)', fontSize:11, lineHeight:1.9, color:'var(--mu)' }}>
                 <div style={{ fontWeight:800, color:'var(--tx)', marginBottom:3 }}>🗂️ الأدوار في Firestore ← users/&#123;uid&#125;</div>
                 <div>• <code style={{ background:'#dbeafe', padding:'1px 6px', borderRadius:4, color:'#1e40af', fontWeight:700 }}>admin</code> ← صلاحيات كاملة</div>
                 <div>• <code style={{ background:'#d1fae5', padding:'1px 6px', borderRadius:4, color:'#065f46', fontWeight:700 }}>teacher</code> ← لوحة المعلم</div>
-                <div>• <code style={{ background:'#ede9fe', padding:'1px 6px', borderRadius:4, color:'#4c1d95', fontWeight:700 }}>student</code> ← لوحة الطالب</div>
+                <div>• <code style={{ background:'rgba(124,58,237,0.12)', padding:'1px 6px', borderRadius:4, color:'#4c1d95', fontWeight:700 }}>student</code> ← لوحة الطالب</div>
               </div>
             </div>
           )}
@@ -424,7 +444,7 @@ function StudentDash({ user }) {
               </div>
 
               {student?.grades?.[sub.id] && (
-                <div style={{ marginTop:10, padding:'7px 10px', background:'#ede9fe', borderRadius:9, fontSize:11, color:'#5b21b6', fontWeight:600 }}>
+                <div style={{ marginTop:10, padding:'7px 10px', background:'rgba(124,58,237,0.12)', borderRadius:9, fontSize:11, color:'#5b21b6', fontWeight:600 }}>
                   📊 امتحان أول: {student.grades[sub.id].exam1||'-'} | ثاني: {student.grades[sub.id].exam2||'-'} | نهائي: {student.grades[sub.id].final||'-'}
                 </div>
               )}
@@ -435,7 +455,7 @@ function StudentDash({ user }) {
                 <button className="btn bp sm" style={{ flex:1, fontSize:12 }} onClick={e=>{e.stopPropagation();open(sub);}}>📖 فتح المادة</button>
                 <button
                   className="btn sm"
-                  style={{ flex:1, fontSize:12, background:'#f3e8ff', color:'#7C3AED', border:'none', borderRadius:'var(--r)', fontFamily:'inherit', fontWeight:600, cursor:'pointer' }}
+                  style={{ flex:1, fontSize:12, background:'rgba(124,58,237,0.12)', color:'#7C3AED', border:'none', borderRadius:'var(--r)', fontFamily:'inherit', fontWeight:600, cursor:'pointer' }}
                   onClick={e => { e.stopPropagation(); setChatOpen({ id:sub.id, name:sub.name, teacher:t?.name }); }}
                 >💬 محادثة</button>
               </div>
@@ -741,7 +761,7 @@ function AdminPayments() {
         <div style={{ display:'flex', gap:6, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none', WebkitScrollbarWidth:'none' }}>
           {MN.slice(0,CM+1).map((mn,i)=>(
             <button key={i} onClick={()=>setSelM(i)}
-              style={{ flexShrink:0, padding:'7px 14px', borderRadius:20, fontFamily:'inherit', fontSize:12, fontWeight:700, border:'2px solid', borderColor:selM===i?'var(--pr)':'var(--bd)', background:selM===i?'linear-gradient(135deg,var(--pr),var(--se))':'#fff', color:selM===i?'#fff':'var(--mu)', cursor:'pointer', transition:'all 0.2s' }}>
+              style={{ flexShrink:0, padding:'7px 14px', borderRadius:20, fontFamily:'inherit', fontSize:12, fontWeight:700, border:'2px solid', borderColor:selM===i?'var(--pr)':'var(--bd)', background:selM===i?'linear-gradient(135deg,var(--pr),var(--se))':'rgba(255,255,255,0.055)', color:selM===i?'#fff':'var(--mu)', cursor:'pointer', transition:'all 0.2s' }}>
               {mn}
             </button>
           ))}
@@ -760,7 +780,7 @@ function AdminPayments() {
       </div>
 
       {filtered.map(student => {
-        const subs = subjects.filter(s=>s.grade===student.grade && student.payments?.[s.id]);
+        const subs = subjects.filter(s=>s.grade===student.grade);
         if(!subs.length)return null;
         const k = mk(CY,selM);
         const pc = subs.filter(s=>student.payments?.[s.id]?.[k]?.paid).length;
@@ -784,7 +804,7 @@ function AdminPayments() {
                 const mo = ensureKey(student,sub.id,selM);
                 const paid = mo.paid;
                 return (
-                  <div key={sub.id} style={{ border:`2px solid ${paid?'var(--ok)':'var(--bd)'}`, borderRadius:'var(--r)', padding:'11px 13px', background:paid?'var(--ok-l)':'#fff', display:'flex', alignItems:'center', gap:10 }}>
+                  <div key={sub.id} style={{ border:`2px solid ${paid?'var(--ok)':'var(--bd)'}`, borderRadius:'var(--r)', padding:'11px 13px', background:paid?'var(--ok-l)':'rgba(255,255,255,0.04)', display:'flex', alignItems:'center', gap:10 }}>
                     <span style={{ fontSize:20 }}>{sub.emoji}</span>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontWeight:700, fontSize:13 }}>{sub.name}</div>
@@ -870,7 +890,7 @@ function PayReports() {
         <div style={{ fontSize:16, fontWeight:800, marginBottom:14 }}>👨‍🏫 نسبة المعلمين (70%) – {MN[mf]} {CY}</div>
         <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
           {teacherStats.map(teacher => (
-            <div key={teacher.id} style={{ border:'2px solid var(--bd)', borderRadius:'var(--r)', padding:'14px', background:'#fff' }}>
+            <div key={teacher.id} style={{ border:'2px solid var(--bd)', borderRadius:'var(--r)', padding:'14px', background:'rgba(255,255,255,0.055)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
                 <div className={teacher.color} style={{ width:40, height:40, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>{teacher.avatar}</div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -1177,7 +1197,7 @@ function AdminStudents() {
                         display:'flex', alignItems:'center', gap:8, padding:'8px 10px',
                         borderRadius:8, cursor:'pointer',
                         border:`2px solid ${sel ? 'var(--pr)' : 'var(--bd)'}`,
-                        background: sel ? 'var(--pr-l)' : '#fff'
+                        background: sel ? 'var(--pr-l)' : 'rgba(255,255,255,0.055)'
                       }}
                     >
                       <span style={{ fontSize:18 }}>{sub.emoji}</span>
@@ -1188,7 +1208,7 @@ function AdminStudents() {
                       <div style={{
                         width:20, height:20, borderRadius:4,
                         border:`2px solid ${sel ? 'var(--pr)' : '#ccc'}`,
-                        background: sel ? 'var(--pr)' : '#fff',
+                        background: sel ? 'var(--pr)' : 'rgba(255,255,255,0.055)',
                         color:'#fff', fontSize:11, fontWeight:700,
                         display:'flex', alignItems:'center', justifyContent:'center'
                       }}>
@@ -1416,7 +1436,7 @@ function AdminTeachers() {
         
         <div className="fg"><label className="fl">الأيقونة</label>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-            {avs.map(av=><button key={av} type="button" onClick={()=>setForm(p=>({...p,avatar:av}))} style={{ width:38, height:38, fontSize:20, border:`2px solid ${form.avatar===av?'var(--pr)':'var(--bd)'}`, borderRadius:9, background:form.avatar===av?'var(--pr-l)':'#fff', cursor:'pointer' }}>{av}</button>)}
+            {avs.map(av=><button key={av} type="button" onClick={()=>setForm(p=>({...p,avatar:av}))} style={{ width:38, height:38, fontSize:20, border:`2px solid ${form.avatar===av?'var(--pr)':'var(--bd)'}`, borderRadius:9, background:form.avatar===av?'var(--pr-l)':'rgba(255,255,255,0.055)', cursor:'pointer' }}>{av}</button>)}
           </div>
         </div>
         <div className="fg"><label className="fl">اللون</label>
@@ -1530,7 +1550,7 @@ function AdminSubjects() {
         <div className="fg"><label className="fl">وصف المادة</label><input className="inp" value={form.desc} onChange={e=>setForm(p=>({...p,desc:e.target.value}))}/></div>
         <div className="fg"><label className="fl">الأيقونة</label>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-            {emojis.map(em=><button key={em} onClick={()=>setForm(p=>({...p,emoji:em}))} style={{ width:36, height:36, fontSize:18, border:`2px solid ${form.emoji===em?'var(--pr)':'var(--bd)'}`, borderRadius:8, background:form.emoji===em?'var(--pr-l)':'#fff', cursor:'pointer' }}>{em}</button>)}
+            {emojis.map(em=><button key={em} onClick={()=>setForm(p=>({...p,emoji:em}))} style={{ width:36, height:36, fontSize:18, border:`2px solid ${form.emoji===em?'var(--pr)':'var(--bd)'}`, borderRadius:8, background:form.emoji===em?'var(--pr-l)':'rgba(255,255,255,0.055)', cursor:'pointer' }}>{em}</button>)}
           </div>
         </div>
         <div className="fg"><label className="fl">اللون</label>
@@ -1627,29 +1647,61 @@ function AdminAnn() {
 function RoomSchedule() {
   const { teachers, subjects, toast } = useApp();
   const [rooms, setRooms] = useState([
-    { id: 'r1', name: 'قاعة مكيفة', capacity: 20 },
-    { id: 'r2', name: 'قاعة عادية', capacity: 15 },
-    { id: 'r3', name: 'قاعة صغيرة', capacity: 12 },
+    { id: 'r1', name: 'قاعة ١', capacity: 30 },
+    { id: 'r2', name: 'قاعة ٢', capacity: 25 },
+    { id: 'r3', name: 'قاعة ٣', capacity: 20 },
   ]);
   
-  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
   const hours = ['8-9', '9-10', '10-11', '11-12', '12-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8'];
   
   const [schedule, setSchedule] = useState({});
-  const [selectedDay, setSelectedDay] = useState('السبت');
-  const [selectedRoom, setSelectedRoom] = useState('r1');
+  const [loading, setLoading] = useState(true);
+  const [selectedCell, setSelectedCell] = useState(null);
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ teacher: '', subject: '', status: 'available' });
-  const [selectedHour, setSelectedHour] = useState(null);
 
   useEffect(() => {
-    getDoc(doc(db, 'settings', 'roomSchedule')).then(docSnap => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.schedule) setSchedule(data.schedule);
-        if (data.rooms) setRooms(data.rooms);
+    let mounted = true;
+
+    const loadData = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'roomSchedule'));
+
+        if (!mounted) return;
+
+        if (docSnap.exists()) {
+          const data = docSnap.data() || {};
+
+          if (data.schedule && typeof data.schedule === 'object' && !Array.isArray(data.schedule)) {
+            setSchedule(data.schedule);
+          }
+
+          if (Array.isArray(data.rooms)) {
+            const safeRooms = data.rooms
+              .filter(r => r && typeof r === 'object')
+              .map((r, i) => ({
+                id: r.id || `r${i + 1}`,
+                name: String(r.name || `قاعة ${i + 1}`),
+                capacity: Number(r.capacity) || 0
+              }));
+
+            if (safeRooms.length) setRooms(safeRooms);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading schedule:', e);
+        // إبقاء القاعات الافتراضية وعدم إسقاط الصفحة.
+      } finally {
+        if (mounted) setLoading(false);
       }
-    }).catch(() => {});
+    };
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const saveToFirestore = async (newSchedule, newRooms) => {
@@ -1660,6 +1712,7 @@ function RoomSchedule() {
         updatedAt: new Date().toISOString()
       }, { merge: true });
     } catch (e) {
+      console.error('Error saving schedule:', e);
       toast('خطأ في الحفظ', 'error');
     }
   };
@@ -1675,21 +1728,33 @@ function RoomSchedule() {
     toast('✅ تمت إضافة القاعة', 'success');
   };
 
-  const openEdit = (hour) => {
-    const key = `${selectedRoom}-${selectedDay}-${hour}`;
-    setSelectedHour(hour);
+  const deleteRoom = async (roomId) => {
+    if (!confirm('حذف هذه القاعة؟')) return;
+    const newRooms = rooms.filter(r => r.id !== roomId);
+    const newSchedule = { ...schedule };
+    Object.keys(newSchedule).forEach(key => {
+      if (key.startsWith(roomId)) delete newSchedule[key];
+    });
+    setRooms(newRooms);
+    setSchedule(newSchedule);
+    await saveToFirestore(newSchedule, newRooms);
+    toast('تم الحذف', 'warning');
+  };
+
+  const openEdit = (roomId, day, hour) => {
+    const key = `${roomId}-${day}-${hour}`;
+    setSelectedCell({ roomId, day, hour, key });
     setEditForm(schedule[key] || { teacher: '', subject: '', status: 'available' });
     setEditModal(true);
   };
 
   const saveCell = async () => {
-    if (!selectedHour) return;
-    const key = `${selectedRoom}-${selectedDay}-${selectedHour}`;
+    if (!selectedCell) return;
     const updated = { ...schedule };
     if (editForm.status === 'available') {
-      delete updated[key];
+      delete updated[selectedCell.key];
     } else {
-      updated[key] = { ...editForm };
+      updated[selectedCell.key] = { ...editForm };
     }
     setSchedule(updated);
     setEditModal(false);
@@ -1704,145 +1769,92 @@ function RoomSchedule() {
     toast('تم مسح الجدول', 'warning');
   };
 
-  const room = rooms.find(r => r.id === selectedRoom);
-  const busyCount = hours.filter(hour => {
-    const key = `${selectedRoom}-${selectedDay}-${hour}`;
-    return schedule[key]?.status === 'busy';
-  }).length;
+  if (loading) return <Loading />;
 
   return (
     <div style={{ animation: 'fadeIn .5s ease' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <div style={{ fontSize: 19, fontWeight: 800 }}>🏫 جدول القاعات</div>
-          <div style={{ fontSize: 11, color: 'var(--mu)', marginTop: 2 }}>{rooms.length} قاعات</div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>🏫 جدول القاعات الأسبوعي</div>
+          <div style={{ fontSize: 13, color: 'var(--mu)', marginTop: 2 }}>من ٨ صباحاً - ٨ مساءً | {rooms.length} قاعات</div>
         </div>
-        <button className="btn bp sm" style={{ fontSize: 11, padding: '5px 12px' }} onClick={addRoom}>➕</button>
-      </div>
-
-      {/* اختيار القاعة */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
-        {rooms.map(r => (
-          <button
-            key={r.id}
-            onClick={() => setSelectedRoom(r.id)}
-            style={{
-              padding: '7px 14px',
-              borderRadius: 20,
-              border: `2px solid ${selectedRoom === r.id ? 'var(--pr)' : 'var(--bd)'}`,
-              background: selectedRoom === r.id ? 'var(--pr)' : '#fff',
-              color: selectedRoom === r.id ? '#fff' : 'var(--tx)',
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-          >
-            {r.name}
-          </button>
-        ))}
-      </div>
-
-      {/* اختيار اليوم */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
-        {days.map(day => (
-          <button
-            key={day}
-            onClick={() => setSelectedDay(day)}
-            style={{
-              padding: '5px 10px',
-              borderRadius: 14,
-              border: `1px solid ${selectedDay === day ? 'var(--se)' : 'var(--bd)'}`,
-              background: selectedDay === day ? '#eef2ff' : '#fff',
-              color: selectedDay === day ? 'var(--se)' : 'var(--mu)',
-              fontWeight: 600,
-              fontSize: 10,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}
-          >
-            {day}
-          </button>
-        ))}
-      </div>
-
-      {/* ملخص */}
-      <div style={{ 
-        background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', 
-        borderRadius: 12, 
-        padding: '12px 14px', 
-        color: '#fff', 
-        marginBottom: 12,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: 13 }}>{room?.name} - {selectedDay}</div>
-          <div style={{ fontSize: 10, opacity: .8 }}>🪑 {room?.capacity} | 📚 {busyCount}/{hours.length} محجوز</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn bp sm" onClick={addRoom}>➕ إضافة قاعة</button>
+          <button type="button" className="btn bgh sm" style={{ color: 'var(--er)' }} onClick={deleteAll}>🗑️ مسح الجدول</button>
         </div>
-        <button className="btn bgh sm" style={{ color: '#fff', borderColor: 'rgba(255,255,255,.3)', fontSize: 10, padding: '4px 10px' }} onClick={deleteAll}>🗑️ مسح</button>
       </div>
 
-      {/* الحصص */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {hours.map((hour, hourIdx) => {
-          const key = `${selectedRoom}-${selectedDay}-${hour}`;
-          const cell = schedule[key];
-          const isAvailable = !cell || cell.status === 'available';
-          const isBusy = cell?.status === 'busy';
-          const isBreak = cell?.status === 'break';
-          
-          return (
-            <div
-              key={hour}
-              onClick={() => openEdit(hour)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '9px 12px',
-                borderRadius: 10,
-                cursor: 'pointer',
-                border: `2px solid ${isAvailable ? '#d1fae5' : isBusy ? '#fecaca' : '#fef3c7'}`,
-                background: isAvailable ? '#f0fdf4' : isBusy ? '#fff5f5' : '#fffbeb'
-              }}
-            >
-              <div style={{ 
-                fontWeight: 700, 
-                fontSize: 11, 
-                color: 'var(--mu)',
-                minWidth: 45,
-                textAlign: 'center'
-              }}>
-                {hour.replace('-', ' - ')}
-                <div style={{ fontSize: 8, opacity: .5 }}>{hourIdx < 4 ? 'ص' : 'م'}</div>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {isAvailable && <span style={{ color: '#16a34a', fontSize: 12 }}>✅ متاح</span>}
-                {isBusy && (
-                  <>
-                    <div style={{ fontWeight: 700, fontSize: 12, color: '#dc2626' }}>{cell.teacher}</div>
-                    <div style={{ fontSize: 10, color: '#991b1b' }}>{cell.subject}</div>
-                  </>
-                )}
-                {isBreak && <span style={{ color: '#92400e', fontSize: 12 }}>⏸️ استراحة</span>}
-              </div>
-              <span style={{ color: 'var(--li)', fontSize: 16 }}>›</span>
-            </div>
-          );
-        })}
+      <div style={{ overflowX: 'auto', borderRadius: 'var(--rx)', border: '2px solid var(--bd)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 800 }}>
+          <thead>
+            <tr style={{ background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', color: '#fff' }}>
+              <th style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>⏰ الوقت</th>
+              {days.map(day => (
+                <th key={day} style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>{day}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(Array.isArray(rooms) ? rooms : []).map((room, roomIdx) => (
+              <React.Fragment key={room.id}>
+                <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <td colSpan={7} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 13, border: '1px solid var(--bd)' }}>
+                    🏠 {room.name} (🪑 {room.capacity} طالب)
+                    <button type="button" onClick={() => deleteRoom(room.id)} style={{ float: 'left', background: 'none', border: 'none', color: 'var(--er)', cursor: 'pointer' }}>🗑️</button>
+                  </td>
+                </tr>
+                {hours.map((hour, hourIdx) => (
+                  <tr key={hour} style={{ background: hourIdx % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.045)' }}>
+                    <td style={{ padding: '6px 8px', border: '1px solid var(--bd)', fontWeight: 700, textAlign: 'center', background: 'rgba(255,255,255,0.04)', whiteSpace: 'nowrap' }}>
+                      {hour.replace('-', ' - ')} {hourIdx < 4 ? 'ص' : 'م'}
+                    </td>
+                    {days.map(day => {
+                      const key = `${room.id}-${day}-${hour}`;
+                      const cell = schedule[key];
+                      const isAvailable = !cell || cell.status === 'available';
+                      const isBusy = cell?.status === 'busy';
+                      const isBreak = cell?.status === 'break';
+                      
+                      return (
+                        <td
+                          key={day}
+                          onClick={() => openEdit(room.id, day, hour)}
+                          style={{
+                            padding: 0,
+                            border: '1px solid var(--bd)',
+                            cursor: 'pointer',
+                            background: isAvailable ? 'rgba(16,185,129,0.12)' : isBusy ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{ padding: '6px 4px', minHeight: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                            {isAvailable && <span style={{ color: '#16a34a', fontSize: 14 }}>✅</span>}
+                            {isBusy && (
+                              <>
+                                <span style={{ fontWeight: 700, color: '#dc2626', fontSize: 10, textAlign: 'center' }}>{cell.teacher}</span>
+                                <span style={{ fontSize: 9, color: '#991b1b', textAlign: 'center' }}>{cell.subject}</span>
+                              </>
+                            )}
+                            {isBreak && <span style={{ fontSize: 14 }}>⏸️</span>}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      <div style={{ marginTop: 12, display: 'flex', gap: 12, fontSize: 10, color: 'var(--mu)', justifyContent: 'center' }}>
+      <div style={{ marginTop: 14, display: 'flex', gap: 16, fontSize: 12, color: 'var(--mu)' }}>
         <span>🟢 متاح</span>
         <span>🔴 محجوز</span>
         <span>🟡 استراحة</span>
       </div>
 
-      <Modal open={editModal} close={() => setEditModal(false)} title={`✏️ ${selectedDay} | ${selectedHour?.replace('-', ' - ') || ''}`}
+      <Modal open={editModal} close={() => setEditModal(false)} title={`✏️ ${selectedCell?.day || ''} | ${selectedCell?.hour?.replace('-', ' - ') || ''} | ${rooms.find(r => r.id === selectedCell?.roomId)?.name || ''}`}
         footer={<><button className="btn bp wf" onClick={saveCell}>💾 حفظ</button><button className="btn bgh wf" onClick={() => setEditModal(false)}>إلغاء</button></>}>
         <div className="fg"><label className="fl">الحالة</label>
           <select className="inp" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
@@ -1856,13 +1868,13 @@ function RoomSchedule() {
             <div className="fg"><label className="fl">المعلم</label>
               <select className="inp" value={editForm.teacher} onChange={e => setEditForm({ ...editForm, teacher: e.target.value })}>
                 <option value="">-- اختر --</option>
-                {teachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                {(Array.isArray(teachers) ? teachers : []).map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
               </select>
             </div>
             <div className="fg"><label className="fl">المادة</label>
               <select className="inp" value={editForm.subject} onChange={e => setEditForm({ ...editForm, subject: e.target.value })}>
                 <option value="">-- اختر --</option>
-                {subjects.filter(s => editForm.teacher && teachers.find(t => t.name === editForm.teacher)?.id === s.teacher).map(s => <option key={s.id} value={s.name}>{s.emoji} {s.name}</option>)}
+                {(Array.isArray(subjects) ? subjects : []).filter(s => editForm.teacher && (Array.isArray(teachers) ? teachers : []).find(t => t.name === editForm.teacher)?.id === s.teacher).map(s => <option key={s.id} value={s.name}>{s.emoji} {s.name}</option>)}
               </select>
             </div>
           </>
@@ -1871,6 +1883,7 @@ function RoomSchedule() {
     </div>
   );
 }
+
 /* ══════════════════════════════════════════════════════════
    TEACHER DASHBOARD
 ══════════════════════════════════════════════════════════ */
