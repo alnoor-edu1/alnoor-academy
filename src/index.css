@@ -4390,422 +4390,109 @@ textarea{
   box-sizing:border-box;
 }
 
-/* ================================================================
-   ALNOOR — MOBILE HARD FIX (FINAL OVERRIDE)
-   هذا الجزء في نهاية الملف عمداً ليتغلب على جميع Responsive السابقة.
-   ================================================================ */
+/* =========================================================
+   AETHER — SAFE PERFORMANCE + MOBILE PATCH
+   IMPORTANT: original design is preserved.
+   This patch only overrides the conflicting mobile behavior.
+   ========================================================= */
+
 @media (max-width: 1024px) {
-  html, body, #root {
-    width: 100% !important;
-    min-width: 0 !important;
+  /* Clear the fixed bottom navigation from page content */
+  .main {
+    margin-right: 0 !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+    max-width: 100% !important;
     overflow-x: hidden !important;
   }
 
-  .main {
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 14px 10px calc(104px + env(safe-area-inset-bottom)) !important;
-    box-sizing: border-box !important;
-  }
-
-  /* ===== Bottom navigation: the sidebar itself becomes the bar ===== */
+  /* One and only one mobile navigation bar */
   .sidebar,
   aside.sidebar {
     position: fixed !important;
     top: auto !important;
-    right: 6px !important;
-    bottom: max(6px, env(safe-area-inset-bottom)) !important;
-    left: 6px !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+
     width: auto !important;
     height: 66px !important;
     min-height: 66px !important;
     max-height: 66px !important;
+
     margin: 0 !important;
-    padding: 5px !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: stretch !important;
-    justify-content: center !important;
-    overflow: hidden !important;
+    padding: 6px !important;
+
     transform: none !important;
-    z-index: 99999 !important;
-    box-sizing: border-box !important;
-  }
-
-  /* مهم: أي شيء داخل sidebar وليس sidebar-nav يختفي على الهاتف.
-     هذا يمنع ظهور اسم الأكاديمية/الهوية فوق أزرار التنقل مهما كان
-     اسم الكلاس المستخدم لها. */
-  .sidebar > *:not(.sidebar-nav),
-  aside.sidebar > *:not(.sidebar-nav) {
-    display: none !important;
-  }
-
-  .sidebar-nav {
-    display: flex !important;
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    flex-direction: row !important;
-    align-items: stretch !important;
-    justify-content: center !important;
-    gap: 4px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-  }
-
-  .sidebar-nav::-webkit-scrollbar {
-    display: none !important;
-  }
-
-  .sidebar-item,
-  .nav-item {
-    position: relative !important;
-    flex: 1 1 0 !important;
-    width: auto !important;
-    min-width: 48px !important;
-    max-width: 110px !important;
-    height: 56px !important;
-    min-height: 56px !important;
-    max-height: 56px !important;
-    margin: 0 !important;
-    padding: 5px 4px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 2px !important;
-    overflow: hidden !important;
-    white-space: nowrap !important;
-    transform: none !important;
-    box-sizing: border-box !important;
-  }
-
-  .sidebar-item .icon,
-  .nav-item .icon {
-    display: block !important;
-    width: auto !important;
-    height: 22px !important;
-    min-height: 22px !important;
-    line-height: 22px !important;
-    flex: 0 0 22px !important;
-    font-size: 18px !important;
-    text-align: center !important;
-  }
-
-  .sidebar-item .label,
-  .nav-item .label {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 14px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    font-size: 8px !important;
-    line-height: 14px !important;
-    text-align: center !important;
-  }
-
-  .sidebar-item:hover,
-  .nav-item:hover,
-  .sidebar-item.active:hover,
-  .nav-item.active:hover {
-    transform: none !important;
-  }
-
-  /* ===== Keep all page content above the bottom bar ===== */
-  .main > *:last-child {
-    margin-bottom: 0 !important;
-  }
-
-  /* ===== Student/add modal always above navigation ===== */
-  .mo,
-  .modal {
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 100000 !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    padding: 8px !important;
-    display: flex !important;
-    align-items: flex-end !important;
-    justify-content: center !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
-
-  .md,
-  .modal .md {
-    position: relative !important;
-    z-index: 100001 !important;
-    width: 100% !important;
-    max-width: 560px !important;
-    height: auto !important;
-    max-height: calc(100dvh - 16px) !important;
-    max-height: calc(100svh - 16px) !important;
-    margin: 0 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
-
-  .md .mh {
-    flex: 0 0 auto !important;
-  }
-
-  .md .mb {
-    min-height: 0 !important;
-    flex: 1 1 auto !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    box-sizing: border-box !important;
-  }
-
-  .md .mf {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    flex: 0 0 auto !important;
-    width: 100% !important;
-    min-height: 64px !important;
-    display: flex !important;
-    align-items: center !important;
-    box-sizing: border-box !important;
-    z-index: 100002 !important;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) !important;
-    background: rgba(7, 12, 24, .97) !important;
-    backdrop-filter: blur(18px) !important;
-    -webkit-backdrop-filter: blur(18px) !important;
-  }
-
-  .md .mf .btn {
-    position: relative !important;
-    z-index: 100003 !important;
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    min-height: 44px !important;
-  }
-}
-
-@media (max-width: 600px) {
-  .main {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-    padding-bottom: calc(106px + env(safe-area-inset-bottom)) !important;
-  }
-
-  .sidebar,
-  aside.sidebar {
-    left: 5px !important;
-    right: 5px !important;
-    bottom: max(5px, env(safe-area-inset-bottom)) !important;
-    height: 64px !important;
-    min-height: 64px !important;
-    max-height: 64px !important;
-  }
-
-  .sidebar-item,
-  .nav-item {
-    height: 54px !important;
-    min-height: 54px !important;
-  }
-
-  .sidebar-item .label,
-  .nav-item .label {
-    font-size: 7.5px !important;
-  }
-}
-
-@media (max-width: 380px) {
-  .main {
-    padding-left: 6px !important;
-    padding-right: 6px !important;
-    padding-bottom: calc(104px + env(safe-area-inset-bottom)) !important;
-  }
-
-  .sidebar,
-  aside.sidebar {
-    left: 4px !important;
-    right: 4px !important;
-    height: 62px !important;
-    min-height: 62px !important;
-    max-height: 62px !important;
-  }
-
-  .sidebar-item,
-  .nav-item {
-    min-width: 44px !important;
-    height: 52px !important;
-    min-height: 52px !important;
-    padding-left: 2px !important;
-    padding-right: 2px !important;
-  }
-
-  .sidebar-item .icon,
-  .nav-item .icon {
-    font-size: 17px !important;
-  }
-
-  .sidebar-item .label,
-  .nav-item .label {
-    font-size: 7px !important;
-  }
-}
-
-/* ================================================================
-   ALNOOR AETHER — FINAL MOBILE NAVIGATION + STUDENT MODAL FIX
-   ضع هذا القسم في نهاية الملف. تم تصميمه للتغلب على كل قواعد
-   الـResponsive السابقة والمتعارضة في الملف.
-   ================================================================ */
-
-@media (max-width: 600px) {
-
-  /* --------------------------------------------------------------
-     1) الصفحة لا تنزلق أفقيًا
-     -------------------------------------------------------------- */
-  html,
-  body,
-  #root {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: hidden !important;
-  }
-
-  body {
-    padding-bottom: 0 !important;
-  }
-
-  /* --------------------------------------------------------------
-     2) Bottom Navigation حقيقي وثابت أسفل الهاتف
-     -------------------------------------------------------------- */
-  .sidebar,
-  aside.sidebar {
-    position: fixed !important;
-    top: auto !important;
-    right: 6px !important;
-    left: 6px !important;
-    bottom: max(6px, env(safe-area-inset-bottom)) !important;
-
-    width: auto !important;
-    height: 72px !important;
-    min-height: 72px !important;
-    max-height: 72px !important;
-
-    margin: 0 !important;
-    padding: 5px !important;
-    box-sizing: border-box !important;
+    z-index: 2000 !important;
 
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
 
     overflow: hidden !important;
-    z-index: 5000 !important;
-
-    border-radius: 22px !important;
   }
 
-  /* لا تسمح للهوية أو اسم الأكاديمية أو الفوتر بدخول الشريط */
+  /* Keep only the navigation buttons */
   .sidebar::before,
   .sidebar-brand,
-  .sidebar-user,
   .sidebar-footer,
+  .sidebar-user,
   .sidebar-logout {
     display: none !important;
   }
 
-  /* إذا كان هناك أي عنصر إضافي مباشر داخل sidebar، لا يظهر في الشريط */
-  .sidebar > *:not(.sidebar-nav),
-  aside.sidebar > *:not(.sidebar-nav) {
-    display: none !important;
-  }
-
-  /* --------------------------------------------------------------
-     3) شريط الأزرار: RTL + سحب يمين/يسار
-     -------------------------------------------------------------- */
   .sidebar-nav {
-    direction: rtl !important;
-
     width: 100% !important;
     height: 100% !important;
-    min-width: 0 !important;
 
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
-    align-items: stretch !important;
+    align-items: center !important;
     justify-content: flex-start !important;
 
     gap: 4px !important;
-    padding: 0 !important;
-    margin: 0 !important;
 
     overflow-x: auto !important;
     overflow-y: hidden !important;
 
     scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-x: contain !important;
-    touch-action: pan-x !important;
 
-    scroll-behavior: smooth !important;
-    scroll-snap-type: x proximity !important;
-    scroll-padding-inline: 4px !important;
+    direction: rtl !important;
+    touch-action: pan-x !important;
   }
 
   .sidebar-nav::-webkit-scrollbar {
     display: none !important;
-    width: 0 !important;
-    height: 0 !important;
   }
 
-  /* --------------------------------------------------------------
-     4) كل زر له عرض ثابت حتى لا يختفي أو ينضغط
-     -------------------------------------------------------------- */
   .sidebar-item,
   .nav-item {
-    flex: 0 0 64px !important;
-    width: 64px !important;
-    min-width: 64px !important;
-    max-width: 64px !important;
+    flex: 0 0 62px !important;
+    width: 62px !important;
+    min-width: 62px !important;
 
-    height: 58px !important;
-    min-height: 58px !important;
-    max-height: 58px !important;
+    height: 54px !important;
+    min-height: 54px !important;
 
     margin: 0 !important;
-    padding: 6px 3px !important;
-    box-sizing: border-box !important;
+    padding: 5px 3px !important;
 
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
 
-    gap: 3px !important;
+    gap: 2px !important;
+    transform: none !important;
+
+    box-sizing: border-box !important;
     overflow: hidden !important;
 
-    transform: none !important;
-    white-space: nowrap !important;
-
-    scroll-snap-align: center !important;
-    scroll-snap-stop: normal !important;
-
-    border-radius: 15px !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 
   .sidebar-item:hover,
@@ -4815,14 +4502,10 @@ textarea{
 
   .sidebar-item .icon,
   .nav-item .icon {
-    display: block !important;
-    width: auto !important;
-    height: 23px !important;
-    min-height: 23px !important;
-    max-height: 23px !important;
-    line-height: 23px !important;
-    flex: 0 0 23px !important;
-    font-size: 20px !important;
+    height: 21px !important;
+    line-height: 21px !important;
+    flex: 0 0 21px !important;
+    font-size: 19px !important;
   }
 
   .sidebar-item .label,
@@ -4831,19 +4514,13 @@ textarea{
     width: 100% !important;
     max-width: 100% !important;
 
+    font-size: 8px !important;
+    line-height: 12px !important;
+    text-align: center !important;
+
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
-
-    text-align: center !important;
-    font-size: 9px !important;
-    line-height: 13px !important;
-    font-weight: 700 !important;
-  }
-
-  .sidebar-item.active,
-  .nav-item.active {
-    transform: none !important;
   }
 
   .sidebar-item.active::before,
@@ -4851,84 +4528,51 @@ textarea{
     display: none !important;
   }
 
-  /* --------------------------------------------------------------
-     5) الصفحة تترك مساحة حقيقية أسفلها للشريط
-     -------------------------------------------------------------- */
-  .main {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+  /* =======================================================
+     Student modal: always above the navigation
+     ======================================================= */
 
-    margin-right: 0 !important;
-    margin-left: 0 !important;
-
-    padding-bottom: calc(104px + env(safe-area-inset-bottom)) !important;
-  }
-
-  /* --------------------------------------------------------------
-     6) المودال أعلى من الـBottom Navigation بالكامل
-     -------------------------------------------------------------- */
   .mo {
     position: fixed !important;
     inset: 0 !important;
-
-    z-index: 10000 !important;
-
-    display: flex !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
+    z-index: 3000 !important;
 
     box-sizing: border-box !important;
-    isolation: isolate !important;
 
-    /* نرفع البطاقة ونحجز مكانًا للشريط السفلي */
-    padding-top: max(8px, env(safe-area-inset-top)) !important;
-    padding-right: 8px !important;
-    padding-left: 8px !important;
-    padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      8px
+      calc(82px + env(safe-area-inset-bottom))
+      !important;
 
-    overflow-x: hidden !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
-  /* --------------------------------------------------------------
-     7) بطاقة إضافة الطالب — مرتفعة ومحكومة بارتفاع الشاشة
-     -------------------------------------------------------------- */
   .md {
     position: relative !important;
-    z-index: 10001 !important;
+    z-index: 3001 !important;
 
     width: 100% !important;
     max-width: 540px !important;
 
-    height: auto !important;
-    max-height: calc(100dvh - 90px - env(safe-area-inset-bottom)) !important;
-    max-height: calc(100svh - 90px - env(safe-area-inset-bottom)) !important;
+    max-height:
+      calc(100dvh - 94px - env(safe-area-inset-bottom))
+      !important;
 
     margin: 0 auto !important;
-    box-sizing: border-box !important;
 
     display: flex !important;
     flex-direction: column !important;
 
     overflow: hidden !important;
-    isolation: isolate !important;
+    box-sizing: border-box !important;
   }
 
-  /* --------------------------------------------------------------
-     8) عنوان البطاقة ثابت بالأعلى
-     -------------------------------------------------------------- */
   .md .mh {
-    position: relative !important;
-    top: auto !important;
     flex: 0 0 auto !important;
-    z-index: 5 !important;
   }
 
-  /* --------------------------------------------------------------
-     9) محتوى إضافة الطالب وحده قابل للتمرير
-     -------------------------------------------------------------- */
   .md .mb {
     min-height: 0 !important;
     flex: 1 1 auto !important;
@@ -4937,209 +4581,86 @@ textarea{
     overflow-x: hidden !important;
 
     -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-y: contain !important;
-
-    box-sizing: border-box !important;
-    padding: 14px 14px 20px !important;
+    overscroll-behavior: contain !important;
   }
 
-  /* الحقول لا تخرج من البطاقة */
-  .md .fg,
-  .md .inp,
-  .md input,
-  .md select,
-  .md textarea {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  /* لا تجعل آخر مجموعة حقول تأخذ مساحة غير محدودة */
-  .md .fg:last-child {
-    max-height: none !important;
-    overflow: visible !important;
-    margin-bottom: 10px !important;
-  }
-
-  /* --------------------------------------------------------------
-     10) Footer: حفظ وإلغاء ظاهرين دائمًا داخل البطاقة
-     -------------------------------------------------------------- */
   .md .mf {
     position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-
-    z-index: 50 !important;
+    inset: auto !important;
 
     flex: 0 0 auto !important;
     width: 100% !important;
-    min-height: 62px !important;
 
+    z-index: 5 !important;
     box-sizing: border-box !important;
-
-    display: flex !important;
-    align-items: center !important;
-
-    gap: 8px !important;
-
-    padding: 8px 10px !important;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
-
-    background: rgba(9, 14, 29, .98) !important;
-
-    backdrop-filter: blur(18px) !important;
-    -webkit-backdrop-filter: blur(18px) !important;
-
-    border-top: 1px solid var(--line) !important;
-  }
-
-  .md .mf > div {
-    width: 100% !important;
-    display: flex !important;
-    gap: 8px !important;
   }
 
   .md .mf .btn {
-    flex: 1 1 0 !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-
     min-height: 44px !important;
-    padding: 9px 10px !important;
-
-    white-space: nowrap !important;
-  }
-
-  /* --------------------------------------------------------------
-     11) لا يوجد أي عنصر Sticky فوق زر الحفظ
-     -------------------------------------------------------------- */
-  .md .mb * {
-    scrollbar-width: thin;
-  }
-
-  .md .mb .mf,
-  .md .mb .actions,
-  .md .mb .stack-mobile {
-    position: relative !important;
+    touch-action: manipulation !important;
   }
 }
 
-/* ================================================================
-   شاشات 380px وأصغر
-   ================================================================ */
-@media (max-width: 380px) {
+/* =========================================================
+   PERFORMANCE ON TOUCH DEVICES
+   Keep desktop AETHER effects unchanged.
+   Only reduce expensive visual effects on small screens.
+   ========================================================= */
 
-  .sidebar,
-  aside.sidebar {
-    left: 4px !important;
-    right: 4px !important;
-    bottom: max(5px, env(safe-area-inset-bottom)) !important;
-
-    height: 68px !important;
-    min-height: 68px !important;
-    max-height: 68px !important;
-
-    padding: 4px !important;
-    border-radius: 20px !important;
-  }
-
-  .sidebar-item,
-  .nav-item {
-    flex-basis: 60px !important;
-    width: 60px !important;
-    min-width: 60px !important;
-    max-width: 60px !important;
-
-    height: 56px !important;
-    min-height: 56px !important;
-    max-height: 56px !important;
-
-    padding: 5px 2px !important;
-  }
-
-  .sidebar-item .icon,
-  .nav-item .icon {
-    font-size: 19px !important;
-    height: 21px !important;
-    min-height: 21px !important;
-    max-height: 21px !important;
-    line-height: 21px !important;
-    flex-basis: 21px !important;
-  }
-
-  .sidebar-item .label,
-  .nav-item .label {
-    font-size: 8px !important;
-    line-height: 12px !important;
-  }
-
-  .main {
-    padding-bottom: calc(98px + env(safe-area-inset-bottom)) !important;
-  }
-
-  .mo {
-    padding-top: max(5px, env(safe-area-inset-top)) !important;
-    padding-right: 5px !important;
-    padding-left: 5px !important;
-    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
-  }
-
+@media (max-width: 600px) {
+  .card,
+  .sc,
+  .mini-card,
+  .modal,
   .md {
-    max-height: calc(100dvh - 82px - env(safe-area-inset-bottom)) !important;
-    max-height: calc(100svh - 82px - env(safe-area-inset-bottom)) !important;
-    border-radius: 18px !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: none !important;
   }
 
-  .md .mb {
-    padding: 12px 10px 16px !important;
+  .card::after,
+  .sc::after,
+  .mini-card::after {
+    display: none !important;
   }
 
-  .md .mf {
-    min-height: 58px !important;
-    padding: 6px 8px !important;
+  .card:hover,
+  .sc:hover,
+  .mini-card:hover,
+  .btn:hover,
+  .sidebar-item:hover,
+  .nav-item:hover {
+    transform: none !important;
   }
 
-  .md .mf .btn {
-    min-height: 42px !important;
-    font-size: 12px !important;
-    padding: 8px !important;
+  .main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
   }
 }
 
-/* ================================================================
-   شاشات 350px وأصغر
-   ================================================================ */
-@media (max-width: 350px) {
-
+@media (max-width: 380px) {
   .sidebar,
   aside.sidebar {
-    left: 3px !important;
-    right: 3px !important;
-    height: 66px !important;
-    min-height: 66px !important;
-    max-height: 66px !important;
+    left: 5px !important;
+    right: 5px !important;
   }
 
   .sidebar-item,
   .nav-item {
-    flex-basis: 56px !important;
-    width: 56px !important;
-    min-width: 56px !important;
-    max-width: 56px !important;
-    height: 54px !important;
-    min-height: 54px !important;
-    max-height: 54px !important;
+    flex-basis: 58px !important;
+    width: 58px !important;
+    min-width: 58px !important;
   }
+}
 
-  .sidebar-item .label,
-  .nav-item .label {
-    font-size: 7.5px !important;
-  }
-
-  .main {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
 }
