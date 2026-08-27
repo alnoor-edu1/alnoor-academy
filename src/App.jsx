@@ -981,7 +981,7 @@ function AdminStudents() {
   const [search, setSearch] = useState('');
   const [gf, setGf] = useState('');
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ name: '', grade: '', phone: '', email: '' });
+  const [form, setForm] = useState({ name: '', grade: '', phone: '', email: '', pass: '' });
   const [selectedSubjects, setSelectedSubjects] = useState([]);
 
   const filtered = students.filter(
@@ -989,13 +989,13 @@ function AdminStudents() {
   );
 
   const openAdd = () => { 
-    setForm({ name:'', grade:'', phone:'', email:'' }); 
+    setForm({ name:'', grade:'', phone:'', email:'', pass:'' }); 
     setSelectedSubjects([]);
     setModal('add'); 
   };
   
   const openEdit = (s) => { 
-    setForm({ ...s }); 
+    setForm({ ...s, pass: '' }); 
     setSelectedSubjects([]);
     setModal('edit'); 
   };
@@ -1011,12 +1011,32 @@ function AdminStudents() {
   };
 
   const save = async () => {
-    if (!form.name.trim() || !form.grade) { 
+    if (!form.name.trim() || !form.grade || !form.email.trim()) { 
       toast('يرجى ملء الحقول الأساسية', 'error'); 
       return; 
     }
     try {
       if (modal === 'add') {
+        if (!form.pass || form.pass.length < 6) {
+          toast('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+          return;
+        }
+        
+        // 1. إنشاء حساب في Authentication
+        let uid;
+        try {
+          const userCred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.pass);
+          uid = userCred.user.uid;
+        } catch (authError) {
+          if (authError.code === 'auth/email-already-in-use') {
+            toast('هذا البريد مستخدم بالفعل', 'error');
+          } else {
+            toast('خطأ في إنشاء الحساب: ' + authError.message, 'error');
+          }
+          return;
+        }
+        
+        // 2. إنشاء payments للمواد المختارة
         const payments = {};
         selectedSubjects.forEach(subId => {
           payments[subId] = {};
@@ -1025,12 +1045,25 @@ function AdminStudents() {
           }
         });
         
-        await addDoc(collection(db, "students"), { 
+        // 3. حفظ الطالب في students collection
+        await setDoc(doc(db, "students", uid), { 
           ...form, 
           status: "approved", 
           registeredAt: today(),
           payments 
         });
+        
+        // 4. حفظ في users collection
+        await setDoc(doc(db, 'users', uid), {
+          uid,
+          name: form.name.trim(),
+          email: form.email.trim(),
+          role: 'student',
+          status: 'approved',
+          studentId: uid,
+          createdAt: new Date().toISOString(),
+        });
+        
         toast('تم إضافة الطالب ✅', 'success');
       }
       if (modal === 'edit') {
@@ -1178,6 +1211,10 @@ function AdminStudents() {
         <div className="fg"><label className="fl">رقم الهاتف</label><input className="inp" placeholder="01000000000" value={form.phone||''} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
         <div className="fg"><label className="fl">البريد الإلكتروني</label><input className="inp" type="email" placeholder="example@email.com" value={form.email||''} onChange={e=>setForm({...form,email:e.target.value})}/></div>
         
+        {modal === 'add' && (
+          <div className="fg"><label className="fl">كلمة المرور 🔑</label><input className="inp" type="password" placeholder="أدخل كلمة المرور" value={form.pass} onChange={e=>setForm({...form,pass:e.target.value})}/></div>
+        )}
+        
         {modal === 'add' && form.grade && (
           <div className="fg">
             <label className="fl">📚 اختر المواد ({selectedSubjects.length})</label>
@@ -1196,7 +1233,7 @@ function AdminStudents() {
                         display:'flex', alignItems:'center', gap:8, padding:'8px 10px',
                         borderRadius:8, cursor:'pointer',
                         border:`2px solid ${sel ? 'var(--pr)' : 'var(--bd)'}`,
-                        background: sel ? 'var(--pr-l)' : 'rgba(255,255,255,0.055)'
+                        background: sel ? 'var(--pr-l)' : '#fff'
                       }}
                     >
                       <span style={{ fontSize:18 }}>{sub.emoji}</span>
@@ -1207,7 +1244,7 @@ function AdminStudents() {
                       <div style={{
                         width:20, height:20, borderRadius:4,
                         border:`2px solid ${sel ? 'var(--pr)' : '#ccc'}`,
-                        background: sel ? 'var(--pr)' : 'rgba(255,255,255,0.055)',
+                        background: sel ? 'var(--pr)' : '#fff',
                         color:'#fff', fontSize:11, fontWeight:700,
                         display:'flex', alignItems:'center', justifyContent:'center'
                       }}>
@@ -1224,6 +1261,7 @@ function AdminStudents() {
     </div>
   );
 }
+
 
 /* ══════════════════════════════════════════════════════════
    ADMIN TEACHERS
