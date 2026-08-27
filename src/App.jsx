@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import Chat from "./components/Chat";
 import GradesModal from "./components/GradesModal";
@@ -1644,22 +1643,27 @@ function AdminAnn() {
 /* ══════════════════════════════════════════════════════════
    ROOM SCHEDULE
 ══════════════════════════════════════════════════════════ */
-function RoomSchedule() {
+function RoomSchedule({ readOnly = false }) {
   const { teachers, subjects, toast } = useApp();
+
   const [rooms, setRooms] = useState([
     { id: 'r1', name: 'قاعة ١', capacity: 30 },
     { id: 'r2', name: 'قاعة ٢', capacity: 25 },
     { id: 'r3', name: 'قاعة ٣', capacity: 20 },
   ]);
-  
-  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+
+  const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
   const hours = ['8-9', '9-10', '10-11', '11-12', '12-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8'];
-  
+
   const [schedule, setSchedule] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedCell, setSelectedCell] = useState(null);
   const [editModal, setEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ teacher: '', subject: '', status: 'available' });
+  const [mobileDay, setMobileDay] = useState(days[0]);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -1667,7 +1671,6 @@ function RoomSchedule() {
     const loadData = async () => {
       try {
         const docSnap = await getDoc(doc(db, 'settings', 'roomSchedule'));
-
         if (!mounted) return;
 
         if (docSnap.exists()) {
@@ -1683,7 +1686,7 @@ function RoomSchedule() {
               .map((r, i) => ({
                 id: r.id || `r${i + 1}`,
                 name: String(r.name || `قاعة ${i + 1}`),
-                capacity: Number(r.capacity) || 0
+                capacity: Number(r.capacity) || 0,
               }));
 
             if (safeRooms.length) setRooms(safeRooms);
@@ -1691,17 +1694,13 @@ function RoomSchedule() {
         }
       } catch (e) {
         console.error('Error loading schedule:', e);
-        // إبقاء القاعات الافتراضية وعدم إسقاط الصفحة.
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     loadData();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const saveToFirestore = async (newSchedule, newRooms) => {
@@ -1709,7 +1708,7 @@ function RoomSchedule() {
       await setDoc(doc(db, 'settings', 'roomSchedule'), {
         schedule: newSchedule || schedule,
         rooms: newRooms || rooms,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       }, { merge: true });
     } catch (e) {
       console.error('Error saving schedule:', e);
@@ -1718,23 +1717,34 @@ function RoomSchedule() {
   };
 
   const addRoom = async () => {
+    if (readOnly) return;
     const name = prompt('اسم القاعة الجديدة:');
     if (!name) return;
+
     const capacity = prompt('السعة (عدد الطلاب):', '30');
     if (!capacity) return;
-    const newRooms = [...rooms, { id: 'r' + Date.now(), name, capacity: +capacity }];
+
+    const newRooms = [
+      ...rooms,
+      { id: 'r' + Date.now(), name: name.trim(), capacity: Number(capacity) || 30 },
+    ];
+
     setRooms(newRooms);
     await saveToFirestore(schedule, newRooms);
     toast('✅ تمت إضافة القاعة', 'success');
   };
 
   const deleteRoom = async (roomId) => {
+    if (readOnly) return;
     if (!confirm('حذف هذه القاعة؟')) return;
+
     const newRooms = rooms.filter(r => r.id !== roomId);
     const newSchedule = { ...schedule };
+
     Object.keys(newSchedule).forEach(key => {
-      if (key.startsWith(roomId)) delete newSchedule[key];
+      if (key.startsWith(roomId + '-')) delete newSchedule[key];
     });
+
     setRooms(newRooms);
     setSchedule(newSchedule);
     await saveToFirestore(newSchedule, newRooms);
@@ -1742,6 +1752,7 @@ function RoomSchedule() {
   };
 
   const openEdit = (roomId, day, hour) => {
+    if (readOnly) return;
     const key = `${roomId}-${day}-${hour}`;
     setSelectedCell({ roomId, day, hour, key });
     setEditForm(schedule[key] || { teacher: '', subject: '', status: 'available' });
@@ -1750,12 +1761,15 @@ function RoomSchedule() {
 
   const saveCell = async () => {
     if (!selectedCell) return;
+
     const updated = { ...schedule };
+
     if (editForm.status === 'available') {
       delete updated[selectedCell.key];
     } else {
       updated[selectedCell.key] = { ...editForm };
     }
+
     setSchedule(updated);
     setEditModal(false);
     await saveToFirestore(updated, rooms);
@@ -1763,118 +1777,342 @@ function RoomSchedule() {
   };
 
   const deleteAll = async () => {
+    if (readOnly) return;
     if (!confirm('مسح كامل الجدول لجميع القاعات؟')) return;
     setSchedule({});
     await saveToFirestore({}, rooms);
     toast('تم مسح الجدول', 'warning');
   };
 
+  const shiftDay = direction => {
+    const index = days.indexOf(mobileDay);
+    const next = Math.max(0, Math.min(days.length - 1, index + direction));
+    setMobileDay(days[next]);
+  };
+
+  const handleTouchStart = e => {
+    if (!e.touches || !e.touches[0]) return;
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = e => {
+    if (touchStartX == null || touchStartY == null || !e.changedTouches?.[0]) return;
+
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+
+    setTouchStartX(null);
+    setTouchStartY(null);
+
+    if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+    shiftDay(dx < 0 ? 1 : -1);
+  };
+
+  const getRoomStats = roomId => {
+    let busy = 0;
+    let breaks = 0;
+
+    hours.forEach(hour => {
+      const cell = schedule[`${roomId}-${mobileDay}-${hour}`];
+      if (cell?.status === 'busy') busy += 1;
+      if (cell?.status === 'break') breaks += 1;
+    });
+
+    return { busy, breaks, available: hours.length - busy - breaks };
+  };
+
   if (loading) return <Loading />;
 
   return (
-    <div style={{ animation: 'fadeIn .5s ease' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>🏫 جدول القاعات الأسبوعي</div>
-          <div style={{ fontSize: 13, color: 'var(--mu)', marginTop: 2 }}>من ٨ صباحاً - ٨ مساءً | {rooms.length} قاعات</div>
+    <div className="room-week-page">
+      <header className="room-week-header">
+        <div className="room-week-heading">
+          <div className="room-week-icon">🏫</div>
+          <div>
+            <h1>{readOnly ? 'جدول القاعات - عرض فقط' : 'جدول القاعات الأسبوعي'}</h1>
+            <p>{readOnly ? 'عرض الحصص في القاعات' : 'إدارة الحصص والقاعات بسهولة من الهاتف'}</p>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn bp sm" onClick={addRoom}>➕ إضافة قاعة</button>
-          <button type="button" className="btn bgh sm" style={{ color: 'var(--er)' }} onClick={deleteAll}>🗑️ مسح الجدول</button>
-        </div>
-      </div>
 
-      <div style={{ overflowX: 'auto', borderRadius: 'var(--rx)', border: '2px solid var(--bd)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 800 }}>
-          <thead>
-            <tr style={{ background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', color: '#fff' }}>
-              <th style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>⏰ الوقت</th>
-              {days.map(day => (
-                <th key={day} style={{ padding: '10px 6px', border: '1px solid rgba(255,255,255,.2)', textAlign: 'center' }}>{day}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(Array.isArray(rooms) ? rooms : []).map((room, roomIdx) => (
-              <React.Fragment key={room.id}>
-                <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <td colSpan={7} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 13, border: '1px solid var(--bd)' }}>
-                    🏠 {room.name} (🪑 {room.capacity} طالب)
-                    <button type="button" onClick={() => deleteRoom(room.id)} style={{ float: 'left', background: 'none', border: 'none', color: 'var(--er)', cursor: 'pointer' }}>🗑️</button>
-                  </td>
-                </tr>
-                {hours.map((hour, hourIdx) => (
-                  <tr key={hour} style={{ background: hourIdx % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.045)' }}>
-                    <td style={{ padding: '6px 8px', border: '1px solid var(--bd)', fontWeight: 700, textAlign: 'center', background: 'rgba(255,255,255,0.04)', whiteSpace: 'nowrap' }}>
-                      {hour.replace('-', ' - ')} {hourIdx < 4 ? 'ص' : 'م'}
+        <div className="room-week-actions">
+          <button
+            type="button"
+            className={`btn sm room-week-filter-btn ${availableOnly ? 'active' : ''}`}
+            onClick={() => setAvailableOnly(v => !v)}
+            aria-pressed={availableOnly}
+          >
+            {availableOnly ? '📋 كل المواعيد' : '🟢 المواعيد المتاحة فقط'}
+          </button>
+          {!readOnly && (
+            <>
+              <button type="button" className="btn bp sm" onClick={addRoom}>➕ إضافة قاعة</button>
+              <button type="button" className="btn bgh sm" style={{ color: 'var(--er)' }} onClick={deleteAll}>🗑️ مسح الجدول</button>
+            </>
+          )}
+        </div>
+      </header>
+
+      {/* Desktop version */}
+      <div className="room-week-desktop">
+        <div className="room-week-table-wrap">
+          <table className="room-week-table">
+            <thead>
+              <tr>
+                <th>⏰ الوقت</th>
+                {days.map(day => <th key={day}>{day}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rooms.map(room => (
+                <React.Fragment key={room.id}>
+                  <tr className="room-week-room-row">
+                    <td colSpan={8}>
+                      <span>🏠 {room.name} <small>🪑 {room.capacity} طالب</small></span>
+                      {!readOnly && (
+                        <button type="button" onClick={() => deleteRoom(room.id)} aria-label={`حذف ${room.name}`}>🗑️</button>
+                      )}
                     </td>
-                    {days.map(day => {
-                      const key = `${room.id}-${day}-${hour}`;
-                      const cell = schedule[key];
-                      const isAvailable = !cell || cell.status === 'available';
-                      const isBusy = cell?.status === 'busy';
-                      const isBreak = cell?.status === 'break';
-                      
-                      return (
-                        <td
-                          key={day}
-                          onClick={() => openEdit(room.id, day, hour)}
-                          style={{
-                            padding: 0,
-                            border: '1px solid var(--bd)',
-                            cursor: 'pointer',
-                            background: isAvailable ? 'rgba(16,185,129,0.12)' : isBusy ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <div style={{ padding: '6px 4px', minHeight: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                            {isAvailable && <span style={{ color: '#16a34a', fontSize: 14 }}>✅</span>}
+                  </tr>
+
+                  {hours.map((hour, hourIdx) => (
+                    <tr key={hour}>
+                      <td className="room-week-time">
+                        {hour.replace('-', ' - ')} {hourIdx < 4 ? 'ص' : 'م'}
+                      </td>
+
+                      {days.map(day => {
+                        const key = `${room.id}-${day}-${hour}`;
+                        const cell = schedule[key];
+                        const isAvailable = !cell || cell.status === 'available';
+                        const isBusy = cell?.status === 'busy';
+                        const isBreak = cell?.status === 'break';
+
+                        return (
+                          <td
+                            key={day}
+                            className={`room-week-cell ${isAvailable ? 'available' : isBusy ? 'busy' : 'break'} ${availableOnly && !isAvailable ? 'filtered-out' : ''}`}
+                            onClick={() => openEdit(room.id, day, hour)}
+                            style={{ cursor: readOnly ? 'default' : 'pointer' }}
+                          >
+                            {isAvailable && <span className="room-week-check">✓</span>}
                             {isBusy && (
                               <>
-                                <span style={{ fontWeight: 700, color: '#dc2626', fontSize: 10, textAlign: 'center' }}>{cell.teacher}</span>
-                                <span style={{ fontSize: 9, color: '#991b1b', textAlign: 'center' }}>{cell.subject}</span>
+                                <strong>{cell.teacher || 'محجوز'}</strong>
+                                <small>{cell.subject || 'حصة'}</small>
                               </>
                             )}
-                            {isBreak && <span style={{ fontSize: 14 }}>⏸️</span>}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+                            {isBreak && <span className="room-week-break">⏸</span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div style={{ marginTop: 14, display: 'flex', gap: 16, fontSize: 12, color: 'var(--mu)' }}>
-        <span>🟢 متاح</span>
-        <span>🔴 محجوز</span>
-        <span>🟡 استراحة</span>
+      {/* Mobile version */}
+      <div
+        className="room-week-mobile"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="room-week-mobile-topbar">
+          <div>
+            <span>اليوم المحدد</span>
+            <strong>{mobileDay}</strong>
+          </div>
+          <div className="room-week-mobile-counter">
+            <b>{availableOnly ? '🟢' : rooms.length}</b>
+            <span>{availableOnly ? 'متاح فقط' : 'قاعات'}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className={`room-week-mobile-filter ${availableOnly ? 'active' : ''}`}
+          onClick={() => setAvailableOnly(v => !v)}
+          aria-pressed={availableOnly}
+        >
+          {availableOnly ? '📋 عرض كل المواعيد' : '🟢 عرض المواعيد المتاحة فقط'}
+        </button>
+
+        <div className="room-week-days" role="tablist" aria-label="أيام الأسبوع">
+          {days.map(day => (
+            <button
+              key={day}
+              type="button"
+              className={`room-week-day ${mobileDay === day ? 'active' : ''}`}
+              onClick={() => setMobileDay(day)}
+              role="tab"
+              aria-selected={mobileDay === day}
+            >
+              <span>{day === 'السبت' ? 'س' : day === 'الأحد' ? 'أ' : day === 'الاثنين' ? 'ا' : day === 'الثلاثاء' ? 'ث' : day === 'الأربعاء' ? 'ر' : day === 'الخميس' ? 'خ' : 'ج'}</span>
+              <b>{day}</b>
+            </button>
+          ))}
+        </div>
+
+        <div className="room-week-swipe-hint">
+          <button type="button" onClick={() => shiftDay(-1)} disabled={mobileDay === days[0]} aria-label="اليوم السابق">‹</button>
+          <span>اسحب يمينًا أو يسارًا لتغيير اليوم</span>
+          <button type="button" onClick={() => shiftDay(1)} disabled={mobileDay === days[days.length - 1]} aria-label="اليوم التالي">›</button>
+        </div>
+
+        <div className="room-week-mobile-list">
+          {rooms.map(room => {
+            const stats = getRoomStats(room.id);
+            const availableHours = hours.filter(hour => {
+              const c = schedule[`${room.id}-${mobileDay}-${hour}`];
+              return !c || c.status === 'available';
+            });
+
+            if (availableOnly && availableHours.length === 0) return null;
+
+            return (
+              <section className="room-week-mobile-card" key={room.id}>
+                <div className="room-week-mobile-card-head">
+                  <div className="room-week-mobile-room">
+                    <div className="room-week-mobile-room-icon">🏠</div>
+                    <div>
+                      <strong>{room.name}</strong>
+                      <span>سعة {room.capacity} طالب</span>
+                    </div>
+                  </div>
+
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="room-week-delete"
+                      onClick={() => deleteRoom(room.id)}
+                      aria-label={`حذف ${room.name}`}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+
+                <div className="room-week-stats">
+                  <span className="available"><b>{stats.available}</b> متاح</span>
+                  <span className="busy"><b>{stats.busy}</b> محجوز</span>
+                  <span className="break"><b>{stats.breaks}</b> استراحة</span>
+                </div>
+
+                <div className="room-week-slots">
+                  {hours.map((hour, hourIdx) => {
+                    const key = `${room.id}-${mobileDay}-${hour}`;
+                    const cell = schedule[key];
+                    const isAvailable = !cell || cell.status === 'available';
+                    const isBusy = cell?.status === 'busy';
+                    const isBreak = cell?.status === 'break';
+
+                    if (availableOnly && !isAvailable) return null;
+
+                    return (
+                      <button
+                        key={hour}
+                        type="button"
+                        className={`room-week-slot ${isAvailable ? 'available' : isBusy ? 'busy' : 'break'}`}
+                        onClick={() => openEdit(room.id, mobileDay, hour)}
+                        style={{ cursor: readOnly ? 'default' : 'pointer' }}
+                      >
+                        <span className="room-week-slot-time">
+                          <b>{hour.replace('-', ' - ')}</b>
+                          <small>{hourIdx < 4 ? 'صباحًا' : 'مساءً'}</small>
+                        </span>
+
+                        <span className="room-week-slot-main">
+                          {isAvailable && (
+                            <>
+                              <strong>متاح</strong>
+                              <small>{readOnly ? '' : 'اضغط لإضافة حصة'}</small>
+                            </>
+                          )}
+
+                          {isBusy && (
+                            <>
+                              <strong>{cell.teacher || 'محجوز'}</strong>
+                              <small>{cell.subject || 'حصة محجوزة'}</small>
+                            </>
+                          )}
+
+                          {isBreak && (
+                            <>
+                              <strong>استراحة</strong>
+                              <small>وقت راحة</small>
+                            </>
+                          )}
+                        </span>
+
+                        <span className="room-week-slot-status" aria-hidden="true">
+                          {isAvailable ? '✓' : isBusy ? '●' : 'Ⅱ'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+
+        {availableOnly && !rooms.some(room => hours.some(hour => {
+          const c = schedule[`${room.id}-${mobileDay}-${hour}`];
+          return !c || c.status === 'available';
+        })) && (
+          <div className="room-week-empty">لا توجد مواعيد متاحة في {mobileDay} حاليًا.</div>
+        )}
+
+        <div className="room-week-mobile-legend">
+          <span><i className="available-dot"></i> متاح</span>
+          <span><i className="busy-dot"></i> محجوز</span>
+          <span><i className="break-dot"></i> استراحة</span>
+        </div>
       </div>
 
-      <Modal open={editModal} close={() => setEditModal(false)} title={`✏️ ${selectedCell?.day || ''} | ${selectedCell?.hour?.replace('-', ' - ') || ''} | ${rooms.find(r => r.id === selectedCell?.roomId)?.name || ''}`}
-        footer={<><button className="btn bp wf" onClick={saveCell}>💾 حفظ</button><button className="btn bgh wf" onClick={() => setEditModal(false)}>إلغاء</button></>}>
-        <div className="fg"><label className="fl">الحالة</label>
+      <Modal
+        open={editModal}
+        close={() => setEditModal(false)}
+        title={`✏️ ${selectedCell?.day || ''} | ${selectedCell?.hour?.replace('-', ' - ') || ''} | ${rooms.find(r => r.id === selectedCell?.roomId)?.name || ''}`}
+        footer={
+          <>
+            <button className="btn bp wf" onClick={saveCell}>💾 حفظ</button>
+            <button className="btn bgh wf" onClick={() => setEditModal(false)}>إلغاء</button>
+          </>
+        }
+      >
+        <div className="fg">
+          <label className="fl">الحالة</label>
           <select className="inp" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
             <option value="available">✅ متاح</option>
             <option value="busy">❌ محجوز</option>
             <option value="break">⏸️ استراحة</option>
           </select>
         </div>
+
         {editForm.status === 'busy' && (
           <>
-            <div className="fg"><label className="fl">المعلم</label>
+            <div className="fg">
+              <label className="fl">المعلم</label>
               <select className="inp" value={editForm.teacher} onChange={e => setEditForm({ ...editForm, teacher: e.target.value })}>
                 <option value="">-- اختر --</option>
-                {(Array.isArray(teachers) ? teachers : []).map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                {(Array.isArray(teachers) ? teachers : []).map(t => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
               </select>
             </div>
-            <div className="fg"><label className="fl">المادة</label>
+
+            <div className="fg">
+              <label className="fl">المادة</label>
               <select className="inp" value={editForm.subject} onChange={e => setEditForm({ ...editForm, subject: e.target.value })}>
                 <option value="">-- اختر --</option>
-                {(Array.isArray(subjects) ? subjects : []).filter(s => editForm.teacher && (Array.isArray(teachers) ? teachers : []).find(t => t.name === editForm.teacher)?.id === s.teacher).map(s => <option key={s.id} value={s.name}>{s.emoji} {s.name}</option>)}
+                {(Array.isArray(subjects) ? subjects : [])
+                  .filter(s => editForm.teacher && (Array.isArray(teachers) ? teachers : []).find(t => t.name === editForm.teacher)?.id === s.teacher)
+                  .map(s => <option key={s.id} value={s.name}>{s.emoji} {s.name}</option>)}
               </select>
             </div>
           </>
@@ -1887,9 +2125,18 @@ function RoomSchedule() {
 /* ══════════════════════════════════════════════════════════
    TEACHER DASHBOARD
 ══════════════════════════════════════════════════════════ */
+function TeacherWeeklySchedule({ schedule = {}, rooms = [], teacherName = '' }) {
+  const days = ['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'];
+  const hours = ['8-9','9-10','10-11','11-12','12-1','1-2','2-3','3-4','4-5','5-6','6-7','7-8'];
+  const mine = (room, day, hour) => { const c = schedule[`${room.id}-${day}-${hour}`]; return c && c.status === 'busy' && (!teacherName || c.teacher === teacherName) ? c : null; };
+  return <section className="teacher-weekly-schedule"><div className="teacher-weekly-title">📅 جدولي الأسبوعي</div><div className="teacher-weekly-days">{days.map(d=><span key={d}>{d}</span>)}</div>{rooms.map(r=><div className="teacher-weekly-room" key={r.id}><b>🏫 {r.name}</b>{hours.map(h=>{const found=days.map(d=>[d,mine(r,d,h)]).find(x=>x[1]);return found?<div className="teacher-weekly-item" key={h}>⏰ {h} — {found[0]} — {found[1].subject||'حصة'}</div>:null})}</div>)}</section>;
+}
+
 function TeacherDash({ user }) {
   const { teachers, subjects, students, pendingStudents, setPendingStudents, setStudents, toast } = useApp();
   const teacher = teachers.find(t=>t.id===user.tid);
+  const [teacherRoomSchedule, setTeacherRoomSchedule] = useState({schedule:{},rooms:[]});
+  useEffect(()=>{ getDoc(doc(db,'settings','roomSchedule')).then(s=>{ if(s.exists()) setTeacherRoomSchedule(s.data()||{schedule:{},rooms:[]}); }).catch(console.error); },[]);
   const mySubs = subjects.filter(s=>s.teacher===user.tid);
   const k = mk(CY,CM);
   const [tab, setTab] = useState('subs');
@@ -1964,6 +2211,15 @@ function TeacherDash({ user }) {
         </div>
       </div>
 
+      {/* ✅ جدول القاعات للمعلم - عرض فقط */}
+      <div style={{ marginBottom:16 }}>
+        <TeacherWeeklySchedule 
+          schedule={teacherRoomSchedule.schedule} 
+          rooms={teacherRoomSchedule.rooms} 
+          teacherName={teacher?.name || ''} 
+        />
+      </div>
+
       {myPending.length > 0 && (
         <div style={{ background:'var(--wa-l)', border:'2px solid var(--wa)', borderRadius:'var(--rl)', padding:'12px 14px', marginBottom:14, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ fontWeight:700, color:'#78350f', fontSize:13 }}>⏳ {myPending.length} طلب بانتظار موافقتك</div>
@@ -1975,6 +2231,7 @@ function TeacherDash({ user }) {
         <button className={`tab ${tab==='subs'?'ac':''}`} onClick={()=>setTab('subs')}>📚 موادي</button>
         <button className={`tab ${tab==='students'?'ac':''}`} onClick={()=>setTab('students')}>👨‍🎓 طلابي</button>
         {myPending.length > 0 && <button className={`tab ${tab==='pending'?'ac':''}`} onClick={()=>setTab('pending')}>⏳ ({myPending.length})</button>}
+        <button className={`tab ${tab==='rooms'?'ac':''}`} onClick={()=>setTab('rooms')}>🏫 القاعات</button>
       </div>
 
       {tab==='subs' && (
@@ -2075,6 +2332,12 @@ function TeacherDash({ user }) {
             );
           })}
           {!myPending.length && <div style={{ textAlign:'center', padding:36, color:'var(--mu)' }}>لا توجد طلبات معلّقة</div>}
+        </div>
+      )}
+
+      {tab==='rooms' && (
+        <div style={{ marginTop: 10 }}>
+          <RoomSchedule readOnly={true} />
         </div>
       )}
 
@@ -2269,6 +2532,9 @@ export default function App() {
     { id:'announcements', label:'الإعلانات', icon:'📢' },
     { id:'pending', label:'الطلبات', icon:'⏳' },
     { id:'rooms', label:'القاعات', icon:'🏫' },
+  ] : role === 'teacher' ? [
+    { id:'dashboard', label:'لوحتي', icon:'🏠' },
+    { id:'rooms', label:'القاعات', icon:'🏫' }, // ✅ تمت الإضافة للمعلم
   ] : [
     { id:'dashboard', label:'لوحتي', icon:'🏠' }
   ];
@@ -2286,7 +2552,7 @@ export default function App() {
     if (page === 'teachers') return <AdminTeachers />;
     if (page === 'subjects') return <AdminSubjects />;
     if (page === 'announcements') return <AdminAnn />;
-    if (page === 'rooms') return <RoomSchedule />;
+    if (page === 'rooms') return <RoomSchedule readOnly={role === 'teacher'} />;
     if (page === 'subjectDetail' && selSub) return <SubjectDetail sub={selSub} onBack={() => setPage('dashboard')} />;
     return <AdminOverview />;
   }

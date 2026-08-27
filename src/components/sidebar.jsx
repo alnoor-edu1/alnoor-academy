@@ -50,6 +50,11 @@ export default function Sidebar({ nav, cur, go, user, logout }) {
           <div className="user-name">
             {user?.name || "المستخدم"}
           </div>
+          <div className="user-role">
+            {user?.role === 'admin' ? 'مدير' : 
+             user?.role === 'teacher' ? 'معلم' : 
+             user?.role === 'student' ? 'طالب' : ''}
+          </div>
         </div>
 
         {/* روابط التنقل */}
