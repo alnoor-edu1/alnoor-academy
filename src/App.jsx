@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import Chat from "./components/Chat";
 import GradesModal from "./components/GradesModal";
 import Sidebar from "./components/Sidebar";
@@ -10,6 +12,12 @@ import {
   ensureUserDoc,
   fbErr,
 } from "./firebase.js";
+
+// Auth ثانوي لإنشاء حسابات الطلاب والمعلمين من لوحة المدير.
+// مهم: لا نستخدم auth الأساسي هنا لأن createUserWithEmailAndPassword
+// يسجل الحساب الجديد مباشرةً ويستبدل جلسة المدير.
+const secondaryApp = initializeApp(auth.app.options, "secondary-account-app");
+const secondaryAuth = getAuth(secondaryApp);
 
 import {
   signInWithEmailAndPassword,
@@ -1025,7 +1033,7 @@ function AdminStudents() {
         // 1. إنشاء حساب في Authentication
         let uid;
         try {
-          const userCred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.pass);
+          const userCred = await createUserWithEmailAndPassword(secondaryAuth, form.email.trim(), form.pass);
           uid = userCred.user.uid;
         } catch (authError) {
           if (authError.code === 'auth/email-already-in-use') {
@@ -1314,7 +1322,7 @@ function AdminTeachers() {
         
         let uid;
         try {
-          const userCred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.pass);
+          const userCred = await createUserWithEmailAndPassword(secondaryAuth, form.email.trim(), form.pass);
           uid = userCred.user.uid;
         } catch (authError) {
           console.error('Auth error:', authError);
