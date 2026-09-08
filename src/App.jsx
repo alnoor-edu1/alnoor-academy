@@ -1,15 +1,11 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
+import React, { Suspense, useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from "react";
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import Chat from "./components/Chat";
-import GradesModal from "./components/GradesModal";
-import Sidebar from "./components/Sidebar";
 
 import {
   auth,
   db,
   gProv,
-  ensureUserDoc,
   fbErr,
 } from "./firebase.js";
 
@@ -30,6 +26,9 @@ import {
 import {
   collection,
   onSnapshot,
+  getDocs,
+  query,
+  where,
   doc,
   addDoc,
   updateDoc,
@@ -37,6 +36,10 @@ import {
   getDoc,
   setDoc,
 } from "firebase/firestore";
+
+const Chat = React.lazy(() => import("./components/Chat"));
+const GradesModal = React.lazy(() => import("./components/GradesModal"));
+const Sidebar = React.lazy(() => import("./components/Sidebar"));
 
 /* ══════════════════════════════════════════════════════════
    CONSTANTS
@@ -61,6 +64,11 @@ const GRADES = [
   {id:'s2',name:'الصف الثاني الثانوي',level:'ثانوي'},
   {id:'s3',name:'الصف الثالث الثانوي',level:'ثانوي'},
 ];
+
+const GRADE_GROUPS = GRADES.reduce((groups, grade) => {
+  (groups[grade.level] ||= []).push(grade);
+  return groups;
+}, {});
 
 function mk(y,m) { return `${y}-${m}`; }
 function today() { return new Date().toISOString().split('T')[0]; }
@@ -157,7 +165,7 @@ function PendingScreen({ logout }) {
    LOGIN
 ══════════════════════════════════════════════════════════ */
 function Login() {
-  const { students, pendingStudents, setPendingStudents, toast } = useApp();
+  const { toast } = useApp();
   const [tab, setTab] = useState('firebase');
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
@@ -170,12 +178,6 @@ function Login() {
   const [sPass, setSPass] = useState('');
   const [showSPass, setShowSPass] = useState(false);
   const [lampOn, setLampOn] = useState(true);
-
-  const groups = {};
-  GRADES.forEach(g => {
-    if (!groups[g.level]) groups[g.level] = [];
-    groups[g.level].push(g);
-  });
 
   const doEmail = async () => {
     if (!email.trim() || !pass.trim()) { toast('يرجى إدخال البريد وكلمة المرور','error'); return; }
@@ -200,26 +202,32 @@ function Login() {
     if (!sPass.trim() || sPass.length < 6) { toast('كلمة المرور يجب أن تكون 6 أحرف على الأقل','error'); return; }
     setLoad(true);
     try {
-      if (pendingStudents.find(p => p.email === sEmail.trim())) {
+      const normalizedEmail = sEmail.trim().toLowerCase();
+      const [pendingSnap, studentSnap] = await Promise.all([
+        getDocs(query(collection(db, 'pendingStudents'), where('email', '==', normalizedEmail))),
+        getDocs(query(collection(db, 'students'), where('email', '==', normalizedEmail))),
+      ]);
+
+      if (!pendingSnap.empty) {
         toast('هذا البريد مسجل بالفعل في طلبات الانتظار','error');
         setLoad(false); return;
       }
-      if (students.find(s => s.email === sEmail.trim())) {
+      if (!studentSnap.empty) {
         toast('هذا البريد مسجل بالفعل كطالب','error');
         setLoad(false); return;
       }
-      const userCred = await createUserWithEmailAndPassword(auth, sEmail.trim(), sPass.trim());
+      const userCred = await createUserWithEmailAndPassword(auth, normalizedEmail, sPass.trim());
       const uid = userCred.user.uid;
       
       await setDoc(doc(db, 'users', uid), {
-        uid, name: sName.trim(), email: sEmail.trim(),
+        uid, name: sName.trim(), email: normalizedEmail,
         role: 'student_pending', grade, phone: phone.trim(),
         createdAt: new Date().toISOString(), status: 'pending',
       });
       
       await addDoc(collection(db, 'pendingStudents'), {
         uid, name: sName.trim(), grade, phone: phone.trim(),
-        email: sEmail.trim(), requestedAt: today(), status: 'pending',
+        email: normalizedEmail, requestedAt: today(), status: 'pending',
       });
       
       toast('✅ تم إرسال طلب التسجيل بنجاح! سيتم مراجعته من قبل الإدارة.', 'success');
@@ -240,7 +248,7 @@ function Login() {
           <div key={i} style={{ position:'absolute', borderRadius:'50%', background:'rgba(255,255,255,0.055)', opacity:.07, width:s.w, height:s.h, top:s.t, right:s.r, bottom:s.b, left:s.l }}></div>
         ))}
         {['📐','🔬','📖','🌍','🎨','💻'].map((e,i)=>(
-          <div key={i} style={{ position:'absolute', fontSize:24+i*3, opacity:.11, color:'#fff', top:`${15+i*13}%`, left:`${8+i*14}%`, animation:`fUp ${2+i*.5}s ease-in-out infinite`, animationDelay:`${i*.3}s` }}>{e}</div>
+          <div key={i} style={{ position:'absolute', fontSize:24+i*3, opacity:.11, color:'#fff', top:`${15+i*13}%`, left:`${8+i*14}%`, animation:`fUp ${2+i*.5}s ease-in-out infinite` }}>{e}</div>
         ))}
       </div>
 
@@ -334,7 +342,7 @@ function Login() {
               <div className="fg"><label className="fl">الصف الدراسي</label>
                 <select className="inp" value={grade} onChange={e=>setGrade(e.target.value)}>
                   <option value="">-- اختر الصف --</option>
-                  {Object.entries(groups).map(([lv,gs])=>(
+                  {Object.entries(GRADE_GROUPS).map(([lv,gs])=>(
                     <optgroup key={lv} label={`المرحلة ${lv}`}>
                       {gs.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
                     </optgroup>
@@ -373,18 +381,21 @@ function Login() {
 ══════════════════════════════════════════════════════════ */
 function StudentDash({ user }) {
   const { students, subjects, teachers, announcements, setPage, setSelSub } = useApp();
-  const student = students.find(s => s.id === user.sid);
-  const gradeSubs = subjects.filter(s => s.grade === user.grade);
-  const grade = GRADES.find(g => g.id === user.grade);
+  const student = useMemo(() => students.find(s => s.id === user.sid), [students, user.sid]);
+  const gradeSubs = useMemo(() => subjects.filter(s => s.grade === user.grade), [subjects, user.grade]);
+  const grade = useMemo(() => GRADES.find(g => g.id === user.grade), [user.grade]);
   const curKey = mk(CY, CM);
-  const paidNow = gradeSubs.filter(s => student?.payments?.[s.id]?.[curKey]?.paid).length;
+  const paidNow = useMemo(
+    () => gradeSubs.reduce((count, sub) => count + (student?.payments?.[sub.id]?.[curKey]?.paid ? 1 : 0), 0),
+    [gradeSubs, student, curKey]
+  );
+  const teacherById = useMemo(() => new Map(teachers.map(teacher => [teacher.id, teacher])), [teachers]);
   const [chatOpen, setChatOpen] = useState(null);
 
-  const open = sub => {
-    const t = teachers.find(x => x.id === sub.teacher);
-    setSelSub({ ...sub, student, teacherObj: t });
+  const open = useCallback((sub) => {
+    setSelSub({ ...sub, student, teacherObj: teacherById.get(sub.teacher) });
     setPage('subjectDetail');
-  };
+  }, [setSelSub, setPage, student, teacherById]);
 
   return (
     <div style={{ animation:'fadeIn .5s ease' }}>
@@ -437,7 +448,7 @@ function StudentDash({ user }) {
           const mo = student?.payments?.[sub.id]?.[curKey];
           const paid = mo?.paid;
           return (
-            <div key={sub.id} className="scard-mobile" onClick={()=>open(sub)} style={{ animationDelay:`${i*.07}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
+            <div key={sub.id} className="scard-mobile" onClick={()=>open(sub)}>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div className={sub.color} style={{ width:56, height:56, borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, flexShrink:0 }}>{sub.emoji}</div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -474,7 +485,7 @@ function StudentDash({ user }) {
       {chatOpen && (
         <div className="chat-modal-overlay" onClick={()=>setChatOpen(null)}>
           <div className="chat-modal" onClick={e=>e.stopPropagation()}>
-            <Chat subjectId={chatOpen.id} subjectName={chatOpen.name} teacherName={chatOpen.teacher} onClose={()=>setChatOpen(null)}/>
+            <Suspense fallback={<div className="async-fallback" aria-live="polite">جاري فتح المحادثة...</div>}><Chat subjectId={chatOpen.id} subjectName={chatOpen.name} teacherName={chatOpen.teacher} onClose={()=>setChatOpen(null)}/></Suspense>
           </div>
         </div>
       )}
@@ -595,7 +606,7 @@ function AdminOverview() {
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12, marginBottom:20 }}>
         {stats.map((s,i)=>(
-          <div key={i} className={`sc ${s.c}`} style={{ animationDelay:`${i*.08}s`, animation:'fadeIn .5s ease forwards', opacity:0, padding:'16px 14px' }}>
+          <div key={i} className={`sc ${s.c}`} style={{ padding:'16px 14px' }}>
             <div className="si">{s.ic}</div>
             <div className="sn" style={{ fontSize:26 }}>{s.v}</div>
             <div className="sl">{s.l}</div>
@@ -705,7 +716,7 @@ function PendingReg() {
           {pendingStudents.map((r,i)=>{
             const g = GRADES.find(x=>x.id===r.grade);
             return (
-              <div key={r.id} className="card" style={{ padding:'14px', borderRadius:'var(--rx)', borderRight:'4px solid var(--wa)', animationDelay:`${i*.09}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
+              <div key={r.id} className="card" style={{ padding:'14px', borderRadius:'var(--rx)', borderRight:'4px solid var(--wa)', animation:'fadeIn .5s ease forwards' }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
                   <div style={{ width:44, height:44, borderRadius:12, background:'var(--wa-l)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🎒</div>
                   <div style={{ flex:1, minWidth:0 }}>
@@ -737,18 +748,50 @@ function AdminPayments() {
   const [gf, setGf] = useState('');
   const [search, setSearch] = useState('');
   const [selM, setSelM] = useState(CM);
-  const filtered = students.filter(s => (!gf||s.grade===gf) && (!search||s.name.includes(search)));
+  const [savingKey, setSavingKey] = useState(null);
+
+  const filtered = useMemo(
+    () => students.filter(s => (!gf||s.grade===gf) && (!search||s.name.includes(search))),
+    [students, gf, search]
+  );
 
   const toggle = async (sid, subId, mIdx, cur) => {
     const k = mk(CY,mIdx);
+    const operationKey = `${sid}:${subId}:${k}`;
     const student = students.find(s=>s.id===sid);
-    if (!student) return;
-    const np = JSON.parse(JSON.stringify(student.payments||{}));
-    if (!np[subId]) np[subId]={};
-    np[subId][k] = { paid:!cur, paidDate:!cur?today():null };
-    try { await updateDoc(doc(db,'students',sid),{ payments: np }); }
-    catch(e){ console.error(e); toast('خطأ في الحفظ','error'); return; }
-    toast(cur?`تم إلغاء سداد ${MN[mIdx]}`:`✅ تم تسجيل سداد ${MN[mIdx]}`,'success');
+    if (!student || savingKey === operationKey) return;
+
+    const nextPayment = { paid: !cur, paidDate: !cur ? today() : null };
+    const previousPayments = student.payments;
+    setSavingKey(operationKey);
+
+    // Optimistic UI: reflect the click immediately.
+    setStudents(prev => prev.map(item => {
+      if (item.id !== sid) return item;
+      return {
+        ...item,
+        payments: {
+          ...(item.payments || {}),
+          [subId]: {
+            ...((item.payments || {})[subId] || {}),
+            [k]: nextPayment
+          }
+        }
+      };
+    }));
+
+    try {
+      await updateDoc(doc(db,'students',sid), {
+        [`payments.${subId}.${k}`]: nextPayment
+      });
+      toast(cur?`تم إلغاء سداد ${MN[mIdx]}`:`تم تسجيل سداد ${MN[mIdx]}`,'success');
+    } catch(e) {
+      console.error(e);
+      setStudents(prev => prev.map(item => item.id === sid ? { ...item, payments: previousPayments } : item));
+      toast('تعذر حفظ حالة السداد. تمت إعادة الحالة السابقة.', 'error');
+    } finally {
+      setSavingKey(null);
+    }
   };
 
   const ensureKey = (student,subId,mIdx) => {
@@ -768,7 +811,7 @@ function AdminPayments() {
         <div style={{ display:'flex', gap:6, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none', WebkitScrollbarWidth:'none' }}>
           {MN.slice(0,CM+1).map((mn,i)=>(
             <button key={i} onClick={()=>setSelM(i)}
-              style={{ flexShrink:0, padding:'7px 14px', borderRadius:20, fontFamily:'inherit', fontSize:12, fontWeight:700, border:'2px solid', borderColor:selM===i?'var(--pr)':'var(--bd)', background:selM===i?'linear-gradient(135deg,var(--pr),var(--se))':'rgba(255,255,255,0.055)', color:selM===i?'#fff':'var(--mu)', cursor:'pointer', transition:'all 0.2s' }}>
+              className={`month-btn${selM===i ? ' active' : ''}`}>
               {mn}
             </button>
           ))}
@@ -818,7 +861,8 @@ function AdminPayments() {
                       <div style={{ fontSize:11, color:'var(--mu)' }}>{sub.fee} ج.م</div>
                       {paid && mo.paidDate && <div style={{ fontSize:10, color:'#047857', fontWeight:600 }}>📅 {mo.paidDate}</div>}
                     </div>
-                    <button className={`btn sm ${paid?'ber':'bok'}`} style={{ fontSize:11, flexShrink:0 }} onClick={()=>toggle(student.id,sub.id,selM,paid)}>
+                    <button className={`btn sm ${paid?'ber':'bok'}`} style={{ fontSize:11, flexShrink:0 }} onClick={()=>toggle(student.id,sub.id,selM,paid)}
+                      disabled={savingKey === `${student.id}:${sub.id}:${mk(CY,selM)}`}>
                       {paid?'إلغاء':'✅ سداد'}
                     </button>
                   </div>
@@ -841,40 +885,56 @@ function PayReports() {
   const { students, subjects, teachers } = useApp();
   const [gf, setGf] = useState('');
   const [mf, setMf] = useState(CM);
-  const filtered = students.filter(s=>!gf||s.grade===gf);
   const k = mk(CY,mf);
 
-  const totRev = filtered.reduce((t,s)=>t+subjects.filter(sub=>sub.grade===s.grade).filter(sub=>s.payments?.[sub.id]?.[k]?.paid).reduce((sum,sub)=>sum+sub.fee,0),0);
-  const totExp = filtered.reduce((t,s)=>t+subjects.filter(sub=>sub.grade===s.grade).reduce((sum,sub)=>sum+sub.fee,0),0);
-
-  const teacherStats = teachers.map(teacher => {
-    const teacherSubjects = subjects.filter(sub => sub.teacher === teacher.id);
-    let totalPaid = 0;
-    let totalStudents = 0;
-    let paidStudents = 0;
-    
-    teacherSubjects.forEach(sub => {
-      const gradeStudents = students.filter(s => s.grade === sub.grade);
-      totalStudents += gradeStudents.length;
-      gradeStudents.forEach(s => {
-        if (s.payments?.[sub.id]?.[k]?.paid) {
-          totalPaid += sub.fee;
-          paidStudents++;
-        }
-      });
+  const { filtered, totRev, totExp, teacherStats } = useMemo(() => {
+    const filteredStudents = students.filter(s=>!gf||s.grade===gf);
+    const subjectsByGrade = new Map();
+    subjects.forEach(sub => {
+      const list = subjectsByGrade.get(sub.grade);
+      if (list) list.push(sub);
+      else subjectsByGrade.set(sub.grade, [sub]);
     });
-    
-    const teacherShare = Math.round(totalPaid * 0.7);
-    
-    return {
-      ...teacher,
-      subjectsCount: teacherSubjects.length,
-      totalStudents,
-      paidStudents,
-      totalPaid,
-      teacherShare
-    };
-  }).filter(t => t.subjectsCount > 0);
+
+    const totals = filteredStudents.reduce((acc, student) => {
+      const gradeSubjects = subjectsByGrade.get(student.grade) || [];
+      acc.revenue += gradeSubjects.reduce(
+        (sum, sub) => sum + (student.payments?.[sub.id]?.[k]?.paid ? Number(sub.fee) || 0 : 0),
+        0
+      );
+      acc.expected += gradeSubjects.reduce((sum, sub) => sum + (Number(sub.fee) || 0), 0);
+      return acc;
+    }, { revenue: 0, expected: 0 });
+
+    const stats = teachers.map(teacher => {
+      const teacherSubjects = subjects.filter(sub => sub.teacher === teacher.id);
+      let totalPaid = 0;
+      let totalStudents = 0;
+      let paidStudents = 0;
+
+      teacherSubjects.forEach(sub => {
+        const gradeStudents = filteredStudents.filter(student => student.grade === sub.grade);
+        totalStudents += gradeStudents.length;
+        gradeStudents.forEach(student => {
+          if (student.payments?.[sub.id]?.[k]?.paid) {
+            totalPaid += Number(sub.fee) || 0;
+            paidStudents++;
+          }
+        });
+      });
+
+      return {
+        ...teacher,
+        subjectsCount: teacherSubjects.length,
+        totalStudents,
+        paidStudents,
+        teacherShare: Math.round(totalPaid * 0.7),
+        totalPaid,
+      };
+    }).filter(stat => stat.subjectsCount > 0);
+
+    return { filtered: filteredStudents, totRev: totals.revenue, totExp: totals.expected, teacherStats: stats };
+  }, [students, subjects, teachers, gf, k]);
 
   return (
     <div style={{ animation:'fadeIn .5s ease' }}>
@@ -992,8 +1052,9 @@ function AdminStudents() {
   const [form, setForm] = useState({ name: '', grade: '', phone: '', email: '', pass: '' });
   const [selectedSubjects, setSelectedSubjects] = useState([]);
 
-  const filtered = students.filter(
-    s => s.name?.includes(search) && (!gf || s.grade === gf)
+  const filtered = useMemo(
+    () => students.filter(s => s.name?.includes(search) && (!gf || s.grade === gf)),
+    [students, search, gf]
   );
 
   const openAdd = () => { 
@@ -1008,7 +1069,7 @@ function AdminStudents() {
     setModal('edit'); 
   };
 
-  const availableSubjects = subjects.filter(s => s.grade === form.grade);
+  const availableSubjects = useMemo(() => subjects.filter(s => s.grade === form.grade), [subjects, form.grade]);
 
   const toggleSubject = (subId) => {
     setSelectedSubjects(prev => 
@@ -1129,7 +1190,7 @@ function AdminStudents() {
           const k = mk(CY,CM);
           const paid = studentSubjects.filter(x => s.payments?.[x.id]?.[k]?.paid).length;
           return (
-            <div key={s.id} className="card" style={{ padding:'13px 14px', borderRadius:'var(--rl)', animationDelay:`${i*.05}s`, animation:'fadeIn .4s ease forwards', opacity:0 }}>
+            <div key={s.id} className="card" style={{ padding:'13px 14px', borderRadius:'var(--rl)', animation:'fadeIn .4s ease forwards' }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <div className="av" style={{ background:'var(--pr-l)', color:'var(--pr)', width:40, height:40, fontSize:15 }}>{s.name[0]}</div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -1417,7 +1478,7 @@ function AdminTeachers() {
       
       <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
         {teachers.map((t,i)=>(
-          <div key={t.id} className="card" style={{ padding:'14px', borderRadius:'var(--rx)', animationDelay:`${i*.07}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
+          <div key={t.id} className="card" style={{ padding:'14px', borderRadius:'var(--rx)', animation:'fadeIn .5s ease forwards' }}>
             <div style={{ display:'flex', alignItems:'center', gap:11 }}>
               <div className={t.color} style={{ width:48, height:48, borderRadius:13, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0 }}>{t.avatar}</div>
               <div style={{ flex:1, minWidth:0 }}>
@@ -1564,7 +1625,7 @@ function AdminSubjects() {
           const t = teachers.find(x=>x.id===sub.teacher);
           const g = GRADES.find(x=>x.id===sub.grade);
           return (
-            <div key={sub.id} className="card ch" style={{ borderRadius:'var(--rx)', overflow:'hidden', animationDelay:`${i*.06}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
+            <div key={sub.id} className="card ch" style={{ borderRadius:'var(--rx)', overflow:'hidden', animation:'fadeIn .5s ease forwards' }}>
               <div className={sub.color} style={{ height:70, display:'flex', alignItems:'center', justifyContent:'center', fontSize:34 }}>{sub.emoji}</div>
               <div style={{ padding:'10px 12px' }}>
                 <div style={{ fontWeight:800, fontSize:13, marginBottom:2 }}>{sub.name}</div>
@@ -1651,7 +1712,7 @@ function AdminAnn() {
         {announcements.map((a,i)=>{
           const [bg,co] = tc[a.type]||tc.info;
           return (
-            <div key={a.id} className="card" style={{ padding:'13px 14px', borderRadius:'var(--rx)', borderRight:`4px solid ${co}`, animationDelay:`${i*.08}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
+            <div key={a.id} className="card" style={{ padding:'13px 14px', borderRadius:'var(--rx)', borderRight:`4px solid ${co}`, animation:'fadeIn .5s ease forwards' }}>
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:9 }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
@@ -2180,16 +2241,20 @@ function TeacherWeeklySchedule({ schedule = {}, rooms = [], teacherName = '' }) 
 
 function TeacherDash({ user }) {
   const { teachers, subjects, students, pendingStudents, setPendingStudents, setStudents, toast } = useApp();
-  const teacher = teachers.find(t=>t.id===user.tid);
+  const teacher = useMemo(
+    () => teachers.find(t => t.id === user.tid || t.email === user.email),
+    [teachers, user.tid, user.email]
+  );
+  const teacherId = teacher?.id;
   const [teacherRoomSchedule, setTeacherRoomSchedule] = useState({schedule:{},rooms:[]});
   useEffect(()=>{ getDoc(doc(db,'settings','roomSchedule')).then(s=>{ if(s.exists()) setTeacherRoomSchedule(s.data()||{schedule:{},rooms:[]}); }).catch(console.error); },[]);
-  const mySubs = subjects.filter(s=>s.teacher===user.tid);
+  const mySubs = useMemo(() => subjects.filter(s => s.teacher === teacherId), [subjects, teacherId]);
   const k = mk(CY,CM);
   const [tab, setTab] = useState('subs');
   const [gradesSubject, setGradesSubject] = useState(null);
   const [chatOpen, setChatOpen] = useState(null);
-  const myGrades = [...new Set(mySubs.map(s=>s.grade))];
-  const myPending = pendingStudents.filter(p=>myGrades.includes(p.grade));
+  const myGrades = useMemo(() => [...new Set(mySubs.map(s => s.grade))], [mySubs]);
+  const myPending = useMemo(() => pendingStudents.filter(p => myGrades.includes(p.grade)), [pendingStudents, myGrades]);
 
   const approve = async req => {
     const subs = subjects.filter(s=>s.grade===req.grade);
@@ -2287,7 +2352,7 @@ function TeacherDash({ user }) {
             const sts = students.filter(s=>s.grade===sub.grade && s.payments?.[sub.id]);
             const pc = sts.filter(s=>s.payments?.[sub.id]?.[k]?.paid).length;
             return (
-              <div key={sub.id} className="card ch" style={{ borderRadius:'var(--rx)', overflow:'hidden', animationDelay:`${i*.08}s`, animation:'fadeIn .5s ease forwards', opacity:0 }}>
+              <div key={sub.id} className="card ch" style={{ borderRadius:'var(--rx)', overflow:'hidden', animation:'fadeIn .5s ease forwards' }}>
                 <div className={sub.color} style={{ height:70, display:'flex', alignItems:'center', justifyContent:'center', fontSize:34 }}>{sub.emoji}</div>
                 <div style={{ padding:'11px 12px' }}>
                   <div style={{ fontWeight:800, fontSize:13 }}>{sub.name}</div>
@@ -2388,6 +2453,7 @@ function TeacherDash({ user }) {
       )}
 
       {gradesSubject && (
+        <Suspense fallback={<div className="async-fallback" aria-live="polite">جاري فتح الدرجات...</div>}>
         <GradesModal
           subject={gradesSubject}
           students={students.filter(s=>s.grade===gradesSubject.grade)}
@@ -2397,12 +2463,13 @@ function TeacherDash({ user }) {
             toast('✅ تم حفظ الدرجات بنجاح','success');
           }}
         />
+        </Suspense>
       )}
 
       {chatOpen && (
         <div className="chat-modal-overlay" onClick={()=>setChatOpen(null)}>
           <div className="chat-modal" onClick={e=>e.stopPropagation()}>
-            <Chat subjectId={chatOpen.id} subjectName={chatOpen.name} teacherName={chatOpen.teacher} onClose={()=>setChatOpen(null)}/>
+            <Suspense fallback={<div className="async-fallback" aria-live="polite">جاري فتح المحادثة...</div>}><Chat subjectId={chatOpen.id} subjectName={chatOpen.name} teacherName={chatOpen.teacher} onClose={()=>setChatOpen(null)}/></Suspense>
           </div>
         </div>
       )}
@@ -2420,6 +2487,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selSub, setSelSub] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const toastTimers = useRef(new Map());
 
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -2427,64 +2495,92 @@ export default function App() {
   const [announcements, setAnnouncements] = useState([]);
   const [pendingStudents, setPendingStudents] = useState([]);
 
+  const removeToast = useCallback((id) => {
+    const timers = toastTimers.current.get(id);
+    if (timers) {
+      clearTimeout(timers.exit);
+      clearTimeout(timers.remove);
+      toastTimers.current.delete(id);
+    }
+    setToasts(p => p.filter(t => t.id !== id));
+  }, []);
+
   const toast = useCallback((msg, type='info') => {
-    const id = Date.now();
-    setToasts(p=>[...p,{id,msg,type}]);
-    setTimeout(()=>{
-      setToasts(p=>p.map(t=>t.id===id?{...t,ex:true}:t));
-      setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),300);
-    }, 3500);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setToasts(p => [...p, { id, msg, type }]);
+
+    const exit = setTimeout(() => {
+      setToasts(p => p.map(t => t.id === id ? { ...t, ex: true } : t));
+      const remove = setTimeout(() => {
+        setToasts(p => p.filter(t => t.id !== id));
+        toastTimers.current.delete(id);
+      }, 220);
+      toastTimers.current.set(id, { exit, remove });
+    }, 3200);
+
+    toastTimers.current.set(id, { exit });
   }, []);
 
-  const removeToast = id => setToasts(p=>p.filter(t=>t.id!==id));
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "students"), snap => {
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  useEffect(() => () => {
+    toastTimers.current.forEach(({ exit, remove }) => {
+      clearTimeout(exit);
+      if (remove) clearTimeout(remove);
     });
-    return () => unsub();
+    toastTimers.current.clear();
   }, []);
 
+  // Subscribe only to collections required by the active role.
+  // This removes the five global listeners that previously ran for every session.
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "teachers"), snap => {
-      setTeachers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
-  }, []);
+    if (!role) return undefined;
 
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "subjects"), snap => {
-      setSubjects(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
-  }, []);
+    const unsubs = [];
+    const listen = (name, setter) => {
+      const unsub = onSnapshot(collection(db, name), snap => {
+        setter(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, error => {
+        console.error(`Firestore listener (${name}) failed:`, error);
+      });
+      unsubs.push(unsub);
+    };
 
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "announcements"), snap => {
-      setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
-  }, []);
+    if (role === 'admin') {
+      listen('students', setStudents);
+      listen('teachers', setTeachers);
+      listen('subjects', setSubjects);
+      listen('announcements', setAnnouncements);
+      listen('pendingStudents', setPendingStudents);
+    } else if (role === 'teacher') {
+      listen('students', setStudents);
+      listen('teachers', setTeachers);
+      listen('subjects', setSubjects);
+      listen('pendingStudents', setPendingStudents);
+    } else if (role === 'student') {
+      listen('students', setStudents);
+      listen('teachers', setTeachers);
+      listen('subjects', setSubjects);
+      listen('announcements', setAnnouncements);
+    }
 
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "pendingStudents"), snap => {
-      setPendingStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsub();
-  }, []);
+    return () => unsubs.forEach(unsub => unsub());
+  }, [role]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async fbUser => {
-      if (!fbUser) { 
-        setUser(null); 
-        setRole(null); 
-        setLoading(false); 
-        return; 
+      if (!fbUser) {
+        setUser(null);
+        setRole(null);
+        setPage('dashboard');
+        setSelSub(null);
+        setLoading(false);
+        return;
       }
-      
+
+      setLoading(true);
+
       try {
         const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
-        
+
         if (!userDoc.exists()) {
           await signOut(auth);
           setUser(null);
@@ -2492,10 +2588,10 @@ export default function App() {
           setLoading(false);
           return;
         }
-        
+
         const userData = userDoc.data();
         const r = userData.role || 'student';
-        
+
         if (userData.status === 'rejected') {
           await signOut(auth);
           setUser(null);
@@ -2504,71 +2600,67 @@ export default function App() {
           toast('تم رفض طلب تسجيلك. يرجى التواصل مع الإدارة.', 'error');
           return;
         }
-        
-        let u = { 
-          uid: fbUser.uid, 
-          name: userData.name || fbUser.displayName || '', 
-          email: fbUser.email 
+
+        let u = {
+          uid: fbUser.uid,
+          name: userData.name || fbUser.displayName || '',
+          email: fbUser.email || userData.email || ''
         };
 
         if (r === 'student' || r === 'student_pending') {
           const studentDoc = await getDoc(doc(db, 'students', fbUser.uid));
-          
-          if (studentDoc.exists()) {
+
+          if (studentDoc.exists() && studentDoc.data()?.status === 'approved') {
             const studentData = studentDoc.data();
-            if (studentData.status === 'approved') {
-              u = { 
-                ...u, 
-                sid: studentDoc.id, 
-                grade: studentData.grade 
-              };
-              if (r === 'student_pending') {
-                setRole('student');
-              } else {
-                setRole(r);
-              }
-            } else {
-              setRole('student_pending');
-            }
+            u = { ...u, sid: studentDoc.id, grade: studentData.grade };
+            setRole('student');
           } else {
             setRole('student_pending');
           }
-        } else if (r === 'teacher') {
-          const lt = teachers.find(t => t.email === fbUser.email);
-          if (lt) u = { ...u, tid: lt.id };
-          setRole(r);
         } else {
+          // Teacher id is resolved from the teachers snapshot by email.
+          // Auth initialization no longer depends on that listener.
           setRole(r);
         }
-        
+
         setUser(u);
-      } catch (e) { 
-        console.error('Firestore error:', e); 
-        setUser(null); 
-        setRole(null); 
+      } catch (e) {
+        console.error('Firestore error:', e);
+        setUser(null);
+        setRole(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
-    
+
     return () => unsub();
-  }, [students, teachers]);
+  }, [toast]);
 
-  const logout = async () => {
-    await signOut(auth);
-    setUser(null); 
-    setRole(null); 
-    setPage('dashboard'); 
+
+  const logout = useCallback(async () => {
+    setUser(null);
+    setRole(null);
+    setPage('dashboard');
     setSelSub(null);
-  };
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error('Logout failed:', e);
+      toast('تعذر تسجيل الخروج. حاول مرة أخرى.', 'error');
+    }
+  }, [toast]);
 
-  const ctx = {
+  const ctx = useMemo(() => ({
     user, role, page, setPage, selSub, setSelSub,
     students, setStudents, teachers, setTeachers,
     subjects, setSubjects, announcements, setAnnouncements,
     pendingStudents, setPendingStudents, logout, toast
-  };
+  }), [
+    user, role, page, selSub, students, teachers, subjects,
+    announcements, pendingStudents, logout, toast
+  ]);
 
-  const navItems = role === 'admin' ? [
+  const navItems = useMemo(() => role === 'admin' ? [
     { id:'dashboard', label:'الرئيسية', icon:'🏠' },
     { id:'students', label:'الطلاب', icon:'👨‍🎓' },
     { id:'teachers', label:'المعلمين', icon:'👩‍🏫' },
@@ -2583,7 +2675,7 @@ export default function App() {
     { id:'rooms', label:'القاعات', icon:'🏫' }, // ✅ تمت الإضافة للمعلم
   ] : [
     { id:'dashboard', label:'لوحتي', icon:'🏠' }
-  ];
+  ], [role]);
 
   function renderPage() {
     if (page === 'dashboard') {
@@ -2623,13 +2715,15 @@ export default function App() {
 
   return (
     <Ctx.Provider value={ctx}>
-      <Sidebar
-        nav={navItems}
-        cur={page}
-        go={p => { setPage(p); setSelSub(null); }}
-        user={{ ...user, role }}
-        logout={logout}
-      />
+      <Suspense fallback={<div className="nav-loading" aria-hidden="true" />}>
+        <Sidebar
+          nav={navItems}
+          cur={page}
+          go={p => { setPage(p); setSelSub(null); }}
+          user={{ ...user, role }}
+          logout={logout}
+        />
+      </Suspense>
       <div className="main">{renderPage()}</div>
       <Toasts list={toasts} remove={removeToast} />
     </Ctx.Provider>
